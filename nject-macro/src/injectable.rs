@@ -2,7 +2,7 @@ use crate::core::{DeriveInput, FactoryExpr, error};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, PatType, Token,
+    Expr, PatType, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
@@ -17,6 +17,21 @@ impl Parse for InjectExpr {
             Ok(InjectExpr(input.parse()?, vec![]))
         }
     }
+}
+
+/// Check if a type is `Option<T>` (or `core::option::Option<T>` / `std::option::Option<T>`).
+fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        let last_segment = type_path.path.segments.last();
+        if let Some(segment) = last_segment {
+            if segment.ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    return args.args.len() == 1;
+                }
+            }
+        }
+    }
+    false
 }
 
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
@@ -55,7 +70,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let creation_output = match keys.is_empty() && !types.is_empty() {
         true => {
-            let items = types.iter().zip(&attributes).map(|(_, a)| match a {
+            let items = types.iter().zip(&attributes).map(|(t, a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -74,12 +89,13 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_option_type(t) => quote! { None },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
         }
         false => {
-            let items = keys.iter().zip(&attributes).map(|(k, a)| match a {
+            let items = keys.iter().zip(types.iter()).zip(&attributes).map(|((k, t), a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -94,6 +110,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_option_type(t) => quote! { #k: None },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -105,11 +122,16 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
             for attr_type in attr.1.iter().map(|x| &x.ty) {
                 prov_types.push(quote! {#attr_type});
             }
-        } else {
+        } else if !is_option_type(t) {
             prov_types.push(quote! {#t});
         }
     }
     prov_types.dedup_by(|a, b| a.to_string() == b.to_string());
+    let provider_bounds = if prov_types.is_empty() {
+        quote! {}
+    } else {
+        quote! { NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, }
+    };
     let output = quote! {
         #[derive(nject::InjectableHelperAttr)]
         #input
@@ -117,7 +139,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         impl<'prov, #(#generic_params,)*NjectProvider> nject::Injectable<'prov, #ident<#(#generic_keys),*>, NjectProvider> for #ident<#(#generic_keys),*>
             where
                 #prov_lifetimes
-                NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, #where_predicates
+                #provider_bounds #where_predicates
         {
             #[inline]
             fn inject(provider: &'prov NjectProvider) -> #ident<#(#generic_keys),*> {
