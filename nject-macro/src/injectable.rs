@@ -20,7 +20,17 @@ impl Parse for InjectExpr {
 }
 
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let mut input = syn::parse::<DeriveInput>(item)?;
+    let pre_destroy = input
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("pre_destroy"))
+        .map(|a| a.parse_args::<Expr>())
+        .transpose()?;
+    input
+        .0
+        .attrs
+        .retain(|a| !a.path().is_ident("pre_destroy"));
     let ident = &input.ident;
     let fields = input.fields();
     let types = input.field_types();
@@ -110,6 +120,18 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         }
     }
     prov_types.dedup_by(|a, b| a.to_string() == b.to_string());
+    let pre_destroy_output = match &pre_destroy {
+        Some(expr) => quote! {
+            impl<#(#generic_params),*> Drop for #ident<#(#generic_keys),*>
+            where #where_predicates
+            {
+                fn drop(&mut self) {
+                    (#expr)(self);
+                }
+            }
+        },
+        None => quote! {},
+    };
     let output = quote! {
         #[derive(nject::InjectableHelperAttr)]
         #input
@@ -124,6 +146,8 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                 #creation_output
             }
         }
+
+        #pre_destroy_output
     };
     Ok(output.into())
 }

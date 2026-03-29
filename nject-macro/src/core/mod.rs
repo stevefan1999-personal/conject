@@ -14,7 +14,7 @@ use syn::{
     spanned::Spanned,
 };
 
-pub struct DeriveInput(syn::DeriveInput);
+pub struct DeriveInput(pub(crate) syn::DeriveInput);
 
 impl Deref for DeriveInput {
     type Target = syn::DeriveInput;
