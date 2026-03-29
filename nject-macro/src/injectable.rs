@@ -2,7 +2,7 @@ use crate::core::{DeriveInput, FactoryExpr, error};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, PatType, Token,
+    Expr, PatType, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
@@ -16,6 +16,19 @@ impl Parse for InjectExpr {
         } else {
             Ok(InjectExpr(input.parse()?, vec![]))
         }
+    }
+}
+
+/// Check if a type's last path segment matches the given name (e.g. "Lazy").
+fn is_type_named(ty: &Type, name: &str) -> bool {
+    match ty {
+        Type::Path(type_path) => type_path
+            .path
+            .segments
+            .last()
+            .map(|seg| seg.ident == name)
+            .unwrap_or(false),
+        _ => false,
     }
 }
 
@@ -55,7 +68,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let creation_output = match keys.is_empty() && !types.is_empty() {
         true => {
-            let items = types.iter().zip(&attributes).map(|(_, a)| match a {
+            let items = types.iter().zip(&attributes).map(|(t, a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -74,12 +87,13 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_type_named(t, "Lazy") => quote! { nject::Lazy::new() },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
         }
         false => {
-            let items = keys.iter().zip(&attributes).map(|(k, a)| match a {
+            let items = keys.iter().zip(types.iter()).zip(&attributes).map(|((k, t), a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -94,6 +108,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_type_named(t, "Lazy") => quote! { #k: nject::Lazy::new() },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -105,7 +120,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
             for attr_type in attr.1.iter().map(|x| &x.ty) {
                 prov_types.push(quote! {#attr_type});
             }
-        } else {
+        } else if !is_type_named(t, "Lazy") {
             prov_types.push(quote! {#t});
         }
     }
