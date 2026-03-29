@@ -2,10 +2,20 @@ use crate::core::{DeriveInput, FactoryExpr, error};
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, PatType, Token,
+    Expr, PatType, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
+
+/// Check if a type is `Late<...>` (matches the last path segment being "Late").
+fn is_late_type(ty: &Type) -> bool {
+    if let Type::Path(p) = ty {
+        if let Some(segment) = p.path.segments.last() {
+            return segment.ident == "Late";
+        }
+    }
+    false
+}
 
 struct InjectExpr(Box<Expr>, Vec<PatType>);
 impl Parse for InjectExpr {
@@ -55,7 +65,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let creation_output = match keys.is_empty() && !types.is_empty() {
         true => {
-            let items = types.iter().zip(&attributes).map(|(_, a)| match a {
+            let items = types.iter().zip(&attributes).map(|(t, a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -74,12 +84,13 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_late_type(t) => quote! { nject::Late::new() },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
         }
         false => {
-            let items = keys.iter().zip(&attributes).map(|(k, a)| match a {
+            let items = keys.iter().zip(types.iter()).zip(&attributes).map(|((k, t), a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
@@ -94,6 +105,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_late_type(t) => quote! { #k: nject::Late::new() },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -105,7 +117,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
             for attr_type in attr.1.iter().map(|x| &x.ty) {
                 prov_types.push(quote! {#attr_type});
             }
-        } else {
+        } else if !is_late_type(t) {
             prov_types.push(quote! {#t});
         }
     }
