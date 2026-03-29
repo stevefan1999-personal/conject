@@ -12,7 +12,7 @@ use proc_macro::TokenStream;
 use provider::handle_provider;
 
 /// For internal purposes only. Should not be used.
-#[proc_macro_derive(InjectableHelperAttr, attributes(inject))]
+#[proc_macro_derive(InjectableHelperAttr, attributes(inject, post_construct))]
 pub fn injectable_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }

@@ -20,7 +20,18 @@ impl Parse for InjectExpr {
 }
 
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let mut input = syn::parse::<DeriveInput>(item)?;
+    let post_construct = input
+        .0
+        .attrs
+        .iter()
+        .find(|a| a.path().is_ident("post_construct"))
+        .map(|a| a.parse_args::<Expr>())
+        .transpose()?;
+    input
+        .0
+        .attrs
+        .retain(|a| !a.path().is_ident("post_construct"));
     let ident = &input.ident;
     let fields = input.fields();
     let types = input.field_types();
@@ -98,6 +109,10 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
             });
             quote! { #ident { #(#items),* } }
         }
+    };
+    let creation_output = match &post_construct {
+        Some(expr) => quote! { (#expr)(#creation_output) },
+        None => creation_output,
     };
     let mut prov_types = Vec::<_>::with_capacity(types.len());
     for (t, a) in types.iter().zip(&attributes) {
