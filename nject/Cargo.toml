@@ -15,6 +15,11 @@ repository = "https://github.com/nicolascotton/nject"
 [dependencies]
 nject-macro = { path = "../nject-macro", version = "0.4.5", optional = true }
 
+[dev-dependencies]
+nject-macro = { path = "../nject-macro" }
+tokio = { version = "1", features = ["macros", "rt"] }
+tokio-test = "0.4"
+
 [features]
 default = ["macro"]
 macro = ["dep:nject-macro"]

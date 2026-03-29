@@ -19,7 +19,7 @@ impl Parse for InjectExpr {
     }
 }
 
-pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
+pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let input = syn::parse::<DeriveInput>(item)?;
     let ident = &input.ident;
     let fields = input.fields();
@@ -55,12 +55,16 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let creation_output = match keys.is_empty() && !types.is_empty() {
         true => {
-            let items = types.iter().zip(&attributes).map(|(_, a)| match a {
+            // Tuple struct (unnamed fields)
+            let items = types.iter().zip(&attributes).map(|(t, a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
                         .iter()
-                        .map(|x| quote! { let #x = provider.provide(); })
+                        .map(|x| {
+                            let arg_ty = &x.ty;
+                            quote! { let #x = <NjectProvider as nject::AsyncProvider<'prov, #arg_ty>>::provide(provider).await; }
+                        })
                         .collect::<Vec<_>>();
                     let output = &attr.0;
                     if inputs.is_empty() {
@@ -74,17 +78,23 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
-                None => quote! { provider.provide() },
+                None => {
+                    quote! { <NjectProvider as nject::AsyncProvider<'prov, #t>>::provide(provider).await }
+                },
             });
             quote! { #ident(#(#items),*) }
         }
         false => {
-            let items = keys.iter().zip(&attributes).map(|(k, a)| match a {
+            // Named fields struct
+            let items = keys.iter().zip(types.iter()).zip(&attributes).map(|((k, t), a)| match a {
                 Some(attr) => {
                     let inputs = attr
                         .1
                         .iter()
-                        .map(|x| quote! { let #x = provider.provide(); })
+                        .map(|x| {
+                            let arg_ty = &x.ty;
+                            quote! { let #x = <NjectProvider as nject::AsyncProvider<'prov, #arg_ty>>::provide(provider).await; }
+                        })
                         .collect::<Vec<_>>();
                     let output = &attr.0;
                     quote! {
@@ -94,7 +104,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
-                None => quote! { #k: provider.provide() },
+                None => quote! { #k: <NjectProvider as nject::AsyncProvider<'prov, #t>>::provide(provider).await },
             });
             quote! { #ident { #(#items),* } }
         }
@@ -114,27 +124,16 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         #[derive(nject::InjectableHelperAttr)]
         #input
 
-        impl<'prov, #(#generic_params,)*NjectProvider> nject::Injectable<'prov, #ident<#(#generic_keys),*>, NjectProvider> for #ident<#(#generic_keys),*>
-            where
-                #prov_lifetimes
-                NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, #where_predicates
-        {
-            #[inline]
-            fn inject(provider: &'prov NjectProvider) -> #ident<#(#generic_keys),*> {
-                #creation_output
-            }
-        }
-
         impl<'prov, #(#generic_params,)*NjectProvider> nject::AsyncInjectable<'prov, #ident<#(#generic_keys),*>, NjectProvider> for #ident<#(#generic_keys),*>
             where
                 #prov_lifetimes
-                NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, #where_predicates
+                NjectProvider: #(nject::AsyncProvider<'prov, #prov_types>)+*, #where_predicates
         {
             #[inline]
             fn inject(provider: &'prov NjectProvider) -> impl core::future::Future<Output = #ident<#(#generic_keys),*>> {
-                core::future::ready(
-                    <Self as nject::Injectable<'prov, #ident<#(#generic_keys),*>, NjectProvider>>::inject(provider)
-                )
+                async move {
+                    #creation_output
+                }
             }
         }
     };
