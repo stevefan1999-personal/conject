@@ -52,12 +52,10 @@ impl Parse for InitInput {
 impl Parse for LetDecl {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         input.parse::<Token![let]>()?;
-        let is_mut = if input.peek(Token![mut]) {
+        let is_mut = input.peek(Token![mut]);
+        if is_mut {
             input.parse::<Token![mut]>()?;
-            true
-        } else {
-            false
-        };
+        }
         let ident = input.parse::<Ident>()?;
         let ty = if input.peek(Token![:]) {
             input.parse::<Token![:]>()?;
@@ -80,28 +78,29 @@ fn collect_lifetimes_from_type(ty: &Type, lifetimes: &mut Vec<Lifetime>) {
     match ty {
         Type::Path(p) => {
             for segment in &p.path.segments {
-                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                    for arg in &args.args {
-                        match arg {
-                            GenericArgument::Lifetime(lt) => {
-                                if !lifetimes.iter().any(|l| l.ident == lt.ident) {
-                                    lifetimes.push(lt.clone());
-                                }
-                            }
-                            GenericArgument::Type(t) => {
-                                collect_lifetimes_from_type(t, lifetimes);
-                            }
-                            _ => {}
+                let syn::PathArguments::AngleBracketed(args) = &segment.arguments else {
+                    continue;
+                };
+                for arg in &args.args {
+                    match arg {
+                        GenericArgument::Lifetime(lt)
+                            if !lifetimes.iter().any(|l| l.ident == lt.ident) =>
+                        {
+                            lifetimes.push(lt.clone());
                         }
+                        GenericArgument::Type(t) => {
+                            collect_lifetimes_from_type(t, lifetimes);
+                        }
+                        _ => {}
                     }
                 }
             }
         }
         Type::Reference(r) => {
-            if let Some(lt) = &r.lifetime {
-                if !lifetimes.iter().any(|l| l.ident == lt.ident) {
-                    lifetimes.push(lt.clone());
-                }
+            if let Some(lt) = &r.lifetime
+                && !lifetimes.iter().any(|l| l.ident == lt.ident)
+            {
+                lifetimes.push(lt.clone());
             }
             collect_lifetimes_from_type(&r.elem, lifetimes);
         }
@@ -236,16 +235,11 @@ fn handle_init_block(declarations: &[LetDecl]) -> syn::Result<TokenStream> {
             ));
         }
 
-        let mutability = if decl.is_mut {
-            quote! { mut }
-        } else {
-            quote! {}
-        };
-
-        let ty_annotation = match &decl.ty {
-            Some(t) => quote! { : #t },
-            None => quote! {},
-        };
+        let mutability = if decl.is_mut { quote! { mut } } else { quote! {} };
+        let ty_annotation = decl.ty.as_ref().map_or_else(
+            || quote! {},
+            |t| quote! { : #t },
+        );
 
         let ident = &decl.ident;
         let name_prefix = ident.to_string();

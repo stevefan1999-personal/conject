@@ -20,8 +20,8 @@ impl From<&Type> for ModuleKey {
 
 impl From<&mut Path> for ModuleKey {
     fn from(value: &mut Path) -> Self {
-        if let Some(ref crate_name) = current_crate_name() {
-            substitute_in_path(value, "crate", crate_name);
+        if let Some(crate_name) = current_crate_name() {
+            substitute_in_path(value, "crate", &crate_name);
         }
         Self(value.to_token_stream().to_string())
     }
@@ -39,7 +39,7 @@ impl Module {
     pub fn key(&self) -> Result<ModuleKey, syn::Error> {
         let path_token_stream = self.path.parse().expect("Unable to parse module path.");
         let mut path = syn::parse::<Path>(path_token_stream)?;
-        if let Some(ref crate_name) = self.crate_name {
+        if let Some(crate_name) = &self.crate_name {
             substitute_in_path(&mut path, "crate", crate_name);
         }
         Ok(ModuleKey(path.to_token_stream().to_string()))
@@ -62,10 +62,12 @@ impl Module {
         if let Some(module_crate) = &self.crate_name {
             if self.bin_name.is_some() {
                 return types;
-            } else if let Some(ref crate_name) = current_crate_name() {
-                if module_crate == crate_name && current_bin_name().is_none() {
-                    return types;
-                }
+            }
+            if let Some(crate_name) = current_crate_name()
+                && module_crate == &crate_name
+                && current_bin_name().is_none()
+            {
+                return types;
             }
             for ty in &mut types {
                 substitute_in_type(ty, "crate", module_crate);
@@ -107,11 +109,9 @@ fn current_crate_name() -> Option<String> {
 
 /// Name of the current binary. If it's a bench or test, the name will be `test_bench`
 fn current_bin_name() -> Option<String> {
-    match std::env::var("CARGO_BIN_NAME") {
-        Ok(x) => Some(x),
-        Err(_) => match std::env::var("CARGO_TARGET_TMPDIR") {
-            Ok(_) => Some(String::from("test_bench")),
-            Err(_) => None,
-        },
-    }
+    std::env::var("CARGO_BIN_NAME").ok().or_else(|| {
+        std::env::var("CARGO_TARGET_TMPDIR")
+            .ok()
+            .map(|_| String::from("test_bench"))
+    })
 }

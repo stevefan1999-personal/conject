@@ -15,44 +15,36 @@ use std::{
 fn init_cache() -> HashMap<ModuleKey, Module> {
     let mut cache = HashMap::new();
     let cache_root_dir = cache_path();
-    if let Ok(dir) = std::fs::read_dir(cache_root_dir) {
-        let files = dir.filter_map(|x| match x {
-            Ok(e) => match e.file_type() {
-                Ok(t) => match t.is_file() {
-                    true => Some(e),
-                    false => None,
-                },
-                Err(_) => None,
-            },
-            Err(_) => None,
-        });
-        for file in files {
-            let file_path = file.path();
-            if let Ok(file) = std::fs::File::open(&file_path) {
-                let lines = std::io::BufReader::new(file).lines();
-                let lines = lines.map_while(Result::ok).collect::<Vec<String>>();
-                let crate_name = lines.first().expect("Missing crate name field").to_owned();
-                let bin_name = lines.get(1).expect("Missing bin name field").to_owned();
-                let path = lines.get(2).expect("Missing path field").to_owned();
-                let exported_types = lines.iter().skip(3).map(|x| x.to_owned()).collect();
-                let module = Module {
-                    crate_name: match crate_name.is_empty() {
-                        true => None,
-                        false => Some(crate_name),
-                    },
-                    bin_name: match bin_name.is_empty() {
-                        true => None,
-                        false => Some(bin_name),
-                    },
-                    path,
-                    exported_types,
-                };
-                match module.key() {
-                    Ok(key) => _ = cache.insert(key, module),
-                    Err(_) => _ = std::fs::remove_file(&file_path), // The file has an invalid key. We can remove it.
-                };
-            }
-        }
+    let Ok(dir) = std::fs::read_dir(cache_root_dir) else {
+        return cache;
+    };
+    let files = dir.filter_map(|x| {
+        let e = x.ok()?;
+        e.file_type().ok().filter(|t| t.is_file()).map(|_| e)
+    });
+    for file in files {
+        let file_path = file.path();
+        let Ok(file) = std::fs::File::open(&file_path) else {
+            continue;
+        };
+        let lines = std::io::BufReader::new(file)
+            .lines()
+            .map_while(Result::ok)
+            .collect::<Vec<String>>();
+        let crate_name = lines.first().expect("Missing crate name field").to_owned();
+        let bin_name = lines.get(1).expect("Missing bin name field").to_owned();
+        let path = lines.get(2).expect("Missing path field").to_owned();
+        let exported_types = lines.iter().skip(3).map(|x| x.to_owned()).collect();
+        let module = Module {
+            crate_name: if crate_name.is_empty() { None } else { Some(crate_name) },
+            bin_name: if bin_name.is_empty() { None } else { Some(bin_name) },
+            path,
+            exported_types,
+        };
+        match module.key() {
+            Ok(key) => _ = cache.insert(key, module),
+            Err(_) => _ = std::fs::remove_file(&file_path),
+        };
     }
     cache
 }

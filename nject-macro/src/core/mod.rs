@@ -6,10 +6,9 @@ use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use std::path::PathBuf;
 use std::{ops::Deref, str::FromStr};
-use syn::Token;
 use syn::{
     AngleBracketedGenericArguments, Expr, ExprClosure, Fields, GenericArgument, GenericParam,
-    Ident, Pat, PatType, Path, PathSegment, Type,
+    Ident, Pat, PatType, Path, PathSegment, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
@@ -77,9 +76,12 @@ impl DeriveInput {
         self.generics
             .params
             .iter()
-            .filter_map(|p| match p {
-                GenericParam::Lifetime(l) => Some(quote! { #l }),
-                _ => None,
+            .filter_map(|p| {
+                if let GenericParam::Lifetime(l) = p {
+                    Some(quote! { #l })
+                } else {
+                    None
+                }
             })
             .collect::<Vec<_>>()
     }
@@ -137,15 +139,14 @@ impl Parse for FieldFactoryExpr {
         }
 
         let input = &expr.inputs[0];
-        if let Pat::Ident(pat_ident) = input {
-            Ok(Self::TypeExpr(
-                parsed_type,
-                pat_ident.ident.to_owned(),
-                expr.body,
-            ))
-        } else {
-            Err(syn::Error::new(input.span(), "Input must be an identity."))
-        }
+        let Pat::Ident(pat_ident) = input else {
+            return Err(syn::Error::new(input.span(), "Input must be an identity."));
+        };
+        Ok(Self::TypeExpr(
+            parsed_type,
+            pat_ident.ident.to_owned(),
+            expr.body,
+        ))
     }
 }
 
@@ -202,11 +203,10 @@ pub fn substitute_in_type(ty: &mut Type, from: &str, to: &str) {
 
 /// Substitute an identity in path segment recursively.
 fn substitute_in_path_segment(segment: &mut PathSegment, from: &str, to: &str) {
-    if segment.ident.to_string().eq(from) {
+    if segment.ident == from {
         segment.ident = syn::Ident::new(to, segment.ident.span());
     }
-    let arguments = &mut segment.arguments;
-    match arguments {
+    match &mut segment.arguments {
         syn::PathArguments::None => (),
         syn::PathArguments::AngleBracketed(b) => {
             for arg in &mut b.args {

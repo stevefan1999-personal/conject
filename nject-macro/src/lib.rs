@@ -1,5 +1,6 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
+mod attrs;
 mod async_injectable;
 mod core;
 mod init;
