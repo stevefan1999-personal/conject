@@ -1,3 +1,4 @@
+#![cfg(feature = "env")]
 #![allow(dead_code)]
 use nject::{injectable, provider};
 

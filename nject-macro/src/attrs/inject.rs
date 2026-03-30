@@ -11,6 +11,7 @@ pub enum InjectExpr {
     Named(Type),
     NamedStr(u128),
     /// Environment variable injection: `env("KEY")` or `env("KEY", default_expr)`
+    #[cfg(feature = "env")]
     Env(String, Option<Box<Expr>>),
 }
 
@@ -30,6 +31,7 @@ impl Parse for InjectExpr {
                     }
                     return Ok(InjectExpr::Named(content.parse()?));
                 }
+                #[cfg(feature = "env")]
                 if ident == "env" {
                     input.parse::<syn::Ident>()?;
                     let content;
@@ -93,6 +95,7 @@ impl FromMeta for InjectExpr {
             }
         }
 
+        #[cfg(feature = "env")]
         if let Expr::Call(call) = expr
             && let Expr::Path(path) = &*call.func
             && path.path.is_ident("env")

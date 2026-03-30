@@ -21,6 +21,7 @@ pub(crate) fn build_provider_bounds(
                     prov_types.push(quote! { #attr_type });
                 }
             }
+            #[cfg(feature = "env")]
             Some(InjectExpr::Env(..)) => {
                 // Env injection is self-contained; no provider bounds needed.
             }

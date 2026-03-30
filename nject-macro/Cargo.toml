@@ -24,5 +24,8 @@ const-fnv1a-hash = "1"
 data-encoding = "2"
 itertools = "0.14"
 
+[features]
+env = []
+
 [dev-dependencies]
 nject = { path = "../nject" }

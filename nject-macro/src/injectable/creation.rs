@@ -63,6 +63,7 @@ pub(crate) fn field_init_expr(ty: &Type, attr: &Option<InjectExpr>) -> proc_macr
                 }
             }
         }
+        #[cfg(feature = "env")]
         Some(InjectExpr::Env(key, default)) => {
             match default {
                 Some(def) => quote! { std::env::var(#key).unwrap_or_else(|_| #def) },
