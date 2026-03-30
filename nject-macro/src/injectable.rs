@@ -7,6 +7,20 @@ use syn::{
     spanned::Spanned,
 };
 
+fn is_option_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        let last_segment = type_path.path.segments.last();
+        if let Some(segment) = last_segment {
+            if segment.ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    return args.args.len() == 1;
+                }
+            }
+        }
+    }
+    false
+}
+
 enum InjectExpr {
     /// A direct expression, optionally with factory inputs: `expr` or `|dep: T| expr`
     Value(Box<Expr>, Vec<PatType>),
@@ -107,6 +121,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_option_type(ty) => quote! { None },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
@@ -135,6 +150,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
+                None if is_option_type(ty) => quote! { #k: None },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -154,12 +170,18 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                     prov_types.push(quote! {#attr_type});
                 }
             }
-            None => {
+            None if !is_option_type(t) => {
                 prov_types.push(quote! {#t});
             }
+            None => {}
         }
     }
     prov_types.dedup_by(|a, b| a.to_string() == b.to_string());
+    let provider_bounds = if prov_types.is_empty() {
+        quote! {}
+    } else {
+        quote! { NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, }
+    };
     let output = quote! {
         #[derive(nject::InjectableHelperAttr)]
         #input
@@ -167,7 +189,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         impl<'prov, #(#generic_params,)*NjectProvider> nject::Injectable<'prov, #ident<#(#generic_keys),*>, NjectProvider> for #ident<#(#generic_keys),*>
             where
                 #prov_lifetimes
-                NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, #where_predicates
+                #provider_bounds #where_predicates
         {
             #[inline]
             fn inject(provider: &'prov NjectProvider) -> #ident<#(#generic_keys),*> {
