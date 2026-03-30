@@ -1,5 +1,4 @@
 use super::inject::InjectExpr;
-use crate::injectable::creation::is_type_named;
 use darling::FromField;
 
 #[derive(Clone, FromField)]
@@ -64,11 +63,5 @@ impl ParsedField {
         if errors.is_empty() { Ok(parsed) } else { Err(darling::Error::multiple(errors)) }
     }
 
-    #[allow(dead_code)]
-    pub fn is_type_named(&self, name: &str) -> bool { is_type_named(&self.ty, name) }
-
     pub fn has_provide_or_singleton(&self) -> bool { !self.provide_attrs.is_empty() || self.singleton }
-
-    #[allow(dead_code)]
-    pub fn has_export(&self) -> bool { !self.export_attrs.is_empty() }
 }

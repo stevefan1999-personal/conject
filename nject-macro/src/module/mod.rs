@@ -45,7 +45,7 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
         .iter()
         .enumerate()
         .filter_map(|(i, pf)| {
-            if !pf.has_export() {
+            if pf.export_attrs.is_empty() {
                 return None;
             }
             let attrs = fields[i]

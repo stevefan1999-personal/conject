@@ -20,6 +20,8 @@ syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
 darling = "0.20"
+data-encoding = "2"
+itertools = "0.14"
 
 [dev-dependencies]
 nject = { path = "../nject" }
