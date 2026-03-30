@@ -65,6 +65,19 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         },
         None => quote! {},
     };
+    let async_pre_destroy_output = match &injectable_attrs.async_pre_destroy {
+        Some(expr) => quote! {
+            impl<#(#generic_params),*> #ident<#(#generic_keys),*>
+            where #where_predicates
+            {
+                /// Async cleanup. Call before dropping.
+                pub async fn destroy(&mut self) {
+                    (#expr)(self).await;
+                }
+            }
+        },
+        None => quote! {},
+    };
     let output = quote! {
         #[derive(nject::InjectableHelperAttr)]
         #input
@@ -94,6 +107,8 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         }
 
         #pre_destroy_output
+
+        #async_pre_destroy_output
     };
     Ok(output.into())
 }

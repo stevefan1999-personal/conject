@@ -63,6 +63,12 @@ pub(crate) fn field_init_expr(ty: &Type, attr: &Option<InjectExpr>) -> proc_macr
                 }
             }
         }
+        Some(InjectExpr::Env(key, default)) => {
+            match default {
+                Some(def) => quote! { std::env::var(#key).unwrap_or_else(|_| #def) },
+                None => quote! { std::env::var(#key).expect(&format!("Missing env var: {}", #key)) },
+            }
+        }
         None if is_type_named(ty, "Option") => quote! { None },
         None if is_type_named(ty, "Late") => quote! { nject::Late::new() },
         None if is_type_named(ty, "Lazy") => quote! { nject::Lazy::new() },
