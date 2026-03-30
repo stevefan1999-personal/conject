@@ -1,7 +1,7 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
-mod attrs;
 mod async_injectable;
+mod attrs;
 mod core;
 mod init;
 mod inject;
@@ -17,7 +17,10 @@ use proc_macro::TokenStream;
 use provider::handle_provider;
 
 /// For internal purposes only. Should not be used.
-#[proc_macro_derive(InjectableHelperAttr, attributes(inject, post_construct, pre_destroy, assisted))]
+#[proc_macro_derive(
+    InjectableHelperAttr,
+    attributes(inject, post_construct, pre_destroy, assisted)
+)]
 pub fn injectable_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
@@ -29,7 +32,10 @@ pub fn module_helper_attr(_item: TokenStream) -> TokenStream {
 }
 
 /// For internal purposes only. Should not be used.
-#[proc_macro_derive(ProviderHelperAttr, attributes(import, provide, scope, singleton, decorate))]
+#[proc_macro_derive(
+    ProviderHelperAttr,
+    attributes(import, provide, scope, singleton, decorate)
+)]
 pub fn provider_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
 }
@@ -125,7 +131,7 @@ pub fn provider(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn key(input: TokenStream) -> TokenStream {
     let lit: syn::LitStr = syn::parse(input).expect("key! expects a string literal");
-    let hash = const_fnv1a_hash::fnv1a_hash_128(lit.value().as_bytes(), None);
+    let hash = const_fnv1a_hash::fnv1a_hash_str_128(&lit.value());
     quote::quote! { nject::Key<#hash> }.into()
 }
 

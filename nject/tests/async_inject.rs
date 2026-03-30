@@ -46,7 +46,7 @@ async fn async_injectable_with_deps_should_work() {
     struct Provider;
 
     let svc: Service = Provider.provide_async().await;
-    assert_eq!(svc.0 .0, 99);
+    assert_eq!(svc.0.0, 99);
 }
 
 #[tokio::test]

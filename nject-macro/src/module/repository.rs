@@ -30,8 +30,16 @@ fn init_cache() -> HashMap<ModuleKey, Module> {
         let path = lines.get(2).expect("Missing path field").to_owned();
         let exported_types = lines.iter().skip(3).map(|x| x.to_owned()).collect();
         let module = Module {
-            crate_name: if crate_name.is_empty() { None } else { Some(crate_name) },
-            bin_name: if bin_name.is_empty() { None } else { Some(bin_name) },
+            crate_name: if crate_name.is_empty() {
+                None
+            } else {
+                Some(crate_name)
+            },
+            bin_name: if bin_name.is_empty() {
+                None
+            } else {
+                Some(bin_name)
+            },
             path,
             exported_types,
         };

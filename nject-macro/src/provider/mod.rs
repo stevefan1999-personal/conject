@@ -13,10 +13,15 @@ pub(crate) fn handle_provider(
     let input = syn::parse::<syn::DeriveInput>(item)?;
     let ident = &input.ident;
     let fields = input.fields().iter().collect::<Vec<_>>();
-    let Generics { params: generic_params, keys: generic_keys, where_predicates, .. } = Generics::from_input(&input);
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        where_predicates,
+        ..
+    } = Generics::from_input(&input);
 
-    let parsed_fields = ParsedField::from_fields(input.fields().iter())
-        .map_err(syn::Error::from)?;
+    let parsed_fields =
+        ParsedField::from_fields(input.fields().iter()).map_err(syn::Error::from)?;
 
     let import_attr_indexes: Vec<usize> = parsed_fields
         .iter()

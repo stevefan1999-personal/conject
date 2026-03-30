@@ -15,7 +15,9 @@ impl InjectableAttrs {
                 (&mut post_construct, "post_construct")
             } else if attr.path().is_ident("pre_destroy") {
                 (&mut pre_destroy, "pre_destroy")
-            } else { continue };
+            } else {
+                continue;
+            };
             match attr.parse_args::<syn::Expr>() {
                 Ok(expr) => *target = Some(expr),
                 Err(e) => errors.push(
@@ -25,7 +27,10 @@ impl InjectableAttrs {
             }
         }
         errors.finish()?;
-        Ok(Self { post_construct, pre_destroy })
+        Ok(Self {
+            post_construct,
+            pre_destroy,
+        })
     }
 
     pub fn strip_from(attrs: &mut Vec<syn::Attribute>) {
@@ -45,10 +50,18 @@ impl ProviderAttrs {
         let (mut provide_attrs, mut decorate_attrs, mut scope_attrs) = (vec![], vec![], vec![]);
         for attr in attrs {
             let path = attr.path();
-            if path.is_ident("provide") { provide_attrs.push(attr.clone()); }
-            else if path.is_ident("decorate") { decorate_attrs.push(attr.clone()); }
-            else if path.is_ident("scope") { scope_attrs.push(attr.clone()); }
+            if path.is_ident("provide") {
+                provide_attrs.push(attr.clone());
+            } else if path.is_ident("decorate") {
+                decorate_attrs.push(attr.clone());
+            } else if path.is_ident("scope") {
+                scope_attrs.push(attr.clone());
+            }
         }
-        Self { provide_attrs, decorate_attrs, scope_attrs }
+        Self {
+            provide_attrs,
+            decorate_attrs,
+            scope_attrs,
+        }
     }
 }

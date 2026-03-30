@@ -10,8 +10,8 @@ use quote::quote;
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let mut input = syn::parse::<syn::DeriveInput>(item)?;
 
-    let injectable_attrs: InjectableAttrs = InjectableAttrs::from_attrs(&input.attrs)
-        .map_err(syn::Error::from)?;
+    let injectable_attrs: InjectableAttrs =
+        InjectableAttrs::from_attrs(&input.attrs).map_err(syn::Error::from)?;
     InjectableAttrs::strip_from(&mut input.attrs);
 
     let ident = &input.ident;
@@ -19,8 +19,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let types = input.field_types();
     let keys = input.field_idents();
 
-    let parsed_fields = ParsedField::from_fields(fields.iter())
-        .map_err(syn::Error::from)?;
+    let parsed_fields = ParsedField::from_fields(fields.iter()).map_err(syn::Error::from)?;
 
     let attributes: Vec<Option<crate::attrs::InjectExpr>> =
         parsed_fields.iter().map(|pf| pf.inject.clone()).collect();
@@ -31,19 +30,29 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
 
     if has_assisted {
         return assisted::handle_assisted_injectable(
-            &input, ident, fields, &types, &keys, &attributes, &assisted_flags, &g,
+            &input,
+            ident,
+            fields,
+            &types,
+            &keys,
+            &attributes,
+            &assisted_flags,
+            &g,
         );
     }
 
-    let creation_output =
-        creation::build_creation_output(ident, &types, &keys, &attributes);
+    let creation_output = creation::build_creation_output(ident, &types, &keys, &attributes);
     let creation_output = match &injectable_attrs.post_construct {
         Some(expr) => quote! { (#expr)(#creation_output) },
         None => creation_output,
     };
-    let (prov_types, provider_bounds) =
-        provider_bounds::build_provider_bounds(&types, &attributes);
-    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = &g;
+    let (prov_types, provider_bounds) = provider_bounds::build_provider_bounds(&types, &attributes);
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        prov_lifetimes,
+        where_predicates,
+    } = &g;
     let pre_destroy_output = match &injectable_attrs.pre_destroy {
         Some(expr) => quote! {
             impl<#(#generic_params),*> Drop for #ident<#(#generic_keys),*>

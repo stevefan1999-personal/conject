@@ -14,7 +14,12 @@ pub(super) fn handle_assisted_injectable(
     assisted_flags: &[bool],
     g: &Generics<'_>,
 ) -> syn::Result<TokenStream> {
-    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = g;
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        prov_lifetimes,
+        where_predicates,
+    } = g;
     let is_tuple = keys.is_empty() && !types.is_empty();
 
     let mut assisted_params = Vec::new();
@@ -33,7 +38,9 @@ pub(super) fn handle_assisted_injectable(
         }
     }
 
-    let non_assisted: Vec<_> = types.iter().zip(attributes.iter())
+    let non_assisted: Vec<_> = types
+        .iter()
+        .zip(attributes.iter())
         .zip(assisted_flags.iter())
         .filter(|(_, assisted)| !**assisted)
         .map(|((ty, attr), _)| (*ty, attr.clone()))
@@ -50,10 +57,8 @@ pub(super) fn handle_assisted_injectable(
             .enumerate()
             .map(|(i, ((ty, attr), &is_assisted))| {
                 if is_assisted {
-                    let param_name = syn::Ident::new(
-                        &format!("__assisted_{i}"),
-                        proc_macro2::Span::call_site(),
-                    );
+                    let param_name =
+                        syn::Ident::new(&format!("__assisted_{i}"), proc_macro2::Span::call_site());
                     quote! { #param_name }
                 } else {
                     super::creation::field_init_expr(ty, attr)

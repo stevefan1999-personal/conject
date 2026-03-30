@@ -27,14 +27,14 @@ pub(crate) fn build_creation_output(
         quote! { #ident(#(#items),*) }
     } else {
         // Named-field struct (or unit struct)
-        let items =
-            keys.iter()
-                .zip(types.iter())
-                .zip(attributes)
-                .map(|((k, ty), a)| {
-                    let expr = field_init_expr(ty, a);
-                    quote! { #k: #expr }
-                });
+        let items = keys
+            .iter()
+            .zip(types.iter())
+            .zip(attributes)
+            .map(|((k, ty), a)| {
+                let expr = field_init_expr(ty, a);
+                quote! { #k: #expr }
+            });
         quote! { #ident { #(#items),* } }
     }
 }

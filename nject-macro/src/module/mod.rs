@@ -2,8 +2,8 @@ pub mod models;
 pub mod repository;
 use crate::attrs::{ExportFieldInput, ExportStructInput, ParsedField};
 use crate::core::{DeriveInputExt, Generics};
-use itertools::Itertools;
 use darling::Error as DarlingError;
+use itertools::Itertools;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Path, Type};
@@ -39,8 +39,8 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
         exports
     };
 
-    let parsed_fields = ParsedField::from_fields(input.fields().iter())
-        .map_err(syn::Error::from)?;
+    let parsed_fields =
+        ParsedField::from_fields(input.fields().iter()).map_err(syn::Error::from)?;
 
     let export_attr_indexes: Vec<(usize, Vec<&syn::Attribute>)> = parsed_fields
         .iter()
@@ -74,7 +74,12 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
         struct_type_exports.as_slice(),
     ));
     repository::ensure(module);
-    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        prov_lifetimes,
+        where_predicates,
+    } = Generics::from_input(&input);
     let struct_export_outputs = struct_exports_by_type
         .values()
         .map(|exports| {

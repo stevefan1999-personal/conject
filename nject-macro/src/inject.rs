@@ -11,7 +11,12 @@ pub(crate) fn handle_inject(item: TokenStream, attr: TokenStream) -> syn::Result
         err
     })?;
     let ident = &input.ident;
-    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        prov_lifetimes,
+        where_predicates,
+    } = Generics::from_input(&input);
     let prov_types = attributes.1.iter().map(|x| &x.ty).collect::<Vec<_>>();
     let prov_input = attributes
         .1

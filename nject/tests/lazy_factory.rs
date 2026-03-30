@@ -1,4 +1,4 @@
-use nject::{inject, injectable, provider, Factory, Lazy};
+use nject::{Factory, Lazy, injectable, provider};
 
 // --- Lazy<T> basic API tests ---
 

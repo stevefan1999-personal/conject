@@ -3,8 +3,8 @@ use quote::{ToTokens, quote};
 use std::path::PathBuf;
 use std::str::FromStr;
 use syn::{
-    Expr, ExprClosure, Fields, GenericArgument, GenericParam,
-    Ident, Pat, PatType, Path, PathSegment, Token, Type,
+    Expr, ExprClosure, Fields, GenericArgument, GenericParam, Ident, Pat, PatType, Path,
+    PathSegment, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
@@ -93,7 +93,12 @@ impl<'a> Generics<'a> {
             }
             None => quote! {},
         };
-        Self { params, keys, prov_lifetimes, where_predicates }
+        Self {
+            params,
+            keys,
+            prov_lifetimes,
+            where_predicates,
+        }
     }
 }
 
@@ -175,8 +180,9 @@ pub fn cache_path() -> PathBuf {
 
 pub fn retry<T, E>(times: usize, action: impl Fn() -> Result<T, E>) -> Result<T, E> {
     let result = action();
-    if result.is_ok() || times < 1 { result }
-    else {
+    if result.is_ok() || times < 1 {
+        result
+    } else {
         std::thread::sleep(std::time::Duration::from_millis(100));
         retry(times - 1, action)
     }
@@ -210,10 +216,14 @@ fn substitute_in_path_segment(segment: &mut PathSegment, from: &str, to: &str) {
     match &mut segment.arguments {
         syn::PathArguments::None => (),
         syn::PathArguments::AngleBracketed(b) => {
-            for arg in &mut b.args { substitute_in_generic_argument(arg, from, to) }
+            for arg in &mut b.args {
+                substitute_in_generic_argument(arg, from, to)
+            }
         }
         syn::PathArguments::Parenthesized(p) => {
-            for ty in &mut p.inputs { substitute_in_type(ty, from, to) }
+            for ty in &mut p.inputs {
+                substitute_in_type(ty, from, to)
+            }
         }
     };
 }
@@ -223,13 +233,17 @@ fn substitute_in_generic_argument(arg: &mut GenericArgument, from: &str, to: &st
         syn::GenericArgument::Type(ty) => substitute_in_type(ty, from, to),
         syn::GenericArgument::AssocType(a) => {
             if let Some(args) = &mut a.generics {
-                for arg in &mut args.args { substitute_in_generic_argument(arg, from, to) }
+                for arg in &mut args.args {
+                    substitute_in_generic_argument(arg, from, to)
+                }
             }
             substitute_in_type(&mut a.ty, from, to)
         }
         syn::GenericArgument::Constraint(c) => {
             if let Some(args) = &mut c.generics {
-                for arg in &mut args.args { substitute_in_generic_argument(arg, from, to) }
+                for arg in &mut args.args {
+                    substitute_in_generic_argument(arg, from, to)
+                }
             }
             for bound in &mut c.bounds {
                 if let syn::TypeParamBound::Trait(t) = bound {

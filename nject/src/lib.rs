@@ -288,21 +288,7 @@ pub struct Key<const K: u128>;
 ///
 /// This uses the same algorithm as the internal module hashing,
 /// producing a deterministic `u128` from any `&str`.
-pub const fn str_key_hash(s: &str) -> u128 {
-    // Standard FNV-1a 128-bit parameters (matches const-fnv1a-hash crate)
-    const FNV_OFFSET_BASIS: u128 = 0x6c62272e07bb014262b821756295c58d;
-    const FNV_PRIME: u128 = 0x0000000001000000000000000000013b;
-
-    let bytes = s.as_bytes();
-    let mut hash = FNV_OFFSET_BASIS;
-    let mut i = 0;
-    while i < bytes.len() {
-        hash ^= bytes[i] as u128;
-        hash = hash.wrapping_mul(FNV_PRIME);
-        i += 1;
-    }
-    hash
-}
+pub use const_fnv1a_hash::fnv1a_hash_str_128 as str_key_hash;
 
 /// A lazily-initialized value. Wraps `core::cell::OnceCell<T>` with a convenient API.
 ///

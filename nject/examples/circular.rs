@@ -1,4 +1,4 @@
-use nject::{injectable, provider, Late};
+use nject::{Late, injectable, provider};
 use std::sync::Arc;
 
 #[injectable]

@@ -189,10 +189,18 @@ pub(crate) fn handle_init(item: TokenStream) -> syn::Result<TokenStream> {
                         "each let declaration requires at least one module type",
                     ));
                 }
-                let mutability = if decl.is_mut { quote! { mut } } else { quote! {} };
-                let ty_annotation = decl.ty.as_ref().map_or_else(|| quote! {}, |t| quote! { : #t });
+                let mutability = if decl.is_mut {
+                    quote! { mut }
+                } else {
+                    quote! {}
+                };
+                let ty_annotation = decl
+                    .ty
+                    .as_ref()
+                    .map_or_else(|| quote! {}, |t| quote! { : #t });
                 let ident = &decl.ident;
-                let (struct_defs, let_bindings, last_var) = gen_chain(&decl.modules, &ident.to_string());
+                let (struct_defs, let_bindings, last_var) =
+                    gen_chain(&decl.modules, &ident.to_string());
                 all_tokens.push(quote! {
                     #(#struct_defs)* #(#let_bindings)*
                     let #mutability #ident #ty_annotation = #last_var.provide();

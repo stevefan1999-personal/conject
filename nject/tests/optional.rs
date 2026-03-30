@@ -37,10 +37,7 @@ fn provide_struct_with_optional_named_dep_and_inject_should_use_annotation() {
     // When
     let value: StructWithOptionalNamedDepAndInject = provider.provide();
     // Then
-    assert_eq!(
-        value,
-        StructWithOptionalNamedDepAndInject { dep: Some(42) }
-    );
+    assert_eq!(value, StructWithOptionalNamedDepAndInject { dep: Some(42) });
 }
 
 #[injectable]
@@ -149,13 +146,7 @@ fn provide_all_optional_struct_should_work_with_any_provider() {
     // When
     let value: AllOptionalStruct = provider.provide();
     // Then
-    assert_eq!(
-        value,
-        AllOptionalStruct {
-            a: None,
-            b: None,
-        }
-    );
+    assert_eq!(value, AllOptionalStruct { a: None, b: None });
 }
 
 // --- Optional with injectable inner type + inject override ---

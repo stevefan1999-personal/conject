@@ -2,7 +2,7 @@
 //!
 //! Run with: `cargo run --example lazy_factory -p nject`
 
-use nject::{injectable, provider, Factory, Lazy};
+use nject::{Factory, Lazy, injectable, provider};
 
 // A dependency that might be expensive to construct.
 #[injectable]
@@ -26,11 +26,9 @@ struct UserService {
 impl UserService {
     fn get_user(&self, id: i32) -> String {
         // Initialize the database connection on first use.
-        let db = self
-            .db
-            .get_or_init(|| DatabaseConnection {
-                url: String::from("postgres://localhost/users"),
-            });
+        let db = self.db.get_or_init(|| DatabaseConnection {
+            url: String::from("postgres://localhost/users"),
+        });
         db.query(&format!("SELECT * FROM users WHERE id = {}", id))
     }
 }

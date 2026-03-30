@@ -10,8 +10,7 @@ pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStr
     let types = input.field_types();
     let keys = input.field_idents();
 
-    let parsed_fields = ParsedField::from_fields(fields.iter())
-        .map_err(syn::Error::from)?;
+    let parsed_fields = ParsedField::from_fields(fields.iter()).map_err(syn::Error::from)?;
 
     let attributes: Vec<Option<SimpleInjectExpr>> = fields
         .iter()
@@ -20,11 +19,20 @@ pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStr
             if pf.inject.is_none() {
                 return Ok(None);
             }
-            let attr = f.attrs.iter().rfind(|a| a.path().is_ident("inject")).unwrap();
+            let attr = f
+                .attrs
+                .iter()
+                .rfind(|a| a.path().is_ident("inject"))
+                .unwrap();
             attr.parse_args::<SimpleInjectExpr>().map(Some)
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
+    let Generics {
+        params: generic_params,
+        keys: generic_keys,
+        prov_lifetimes,
+        where_predicates,
+    } = Generics::from_input(&input);
     let creation_output = if keys.is_empty() && !types.is_empty() {
         // Tuple struct (unnamed fields)
         let items = types.iter().zip(&attributes).map(|(t, a)| match a {

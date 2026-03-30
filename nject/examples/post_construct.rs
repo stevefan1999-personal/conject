@@ -12,10 +12,7 @@ struct Config {
 impl Config {
     fn validate(self) -> Self {
         assert!(self.port > 0, "Port must be positive");
-        println!(
-            "Config validated: host={}, port={}",
-            self.host, self.port
-        );
+        println!("Config validated: host={}, port={}", self.host, self.port);
         self
     }
 }
