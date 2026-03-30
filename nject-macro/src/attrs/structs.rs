@@ -4,17 +4,20 @@ use darling::Error as DarlingError;
 pub struct InjectableAttrs {
     pub post_construct: Option<syn::Expr>,
     pub pre_destroy: Option<syn::Expr>,
+    pub async_pre_destroy: Option<syn::Expr>,
 }
 
 impl InjectableAttrs {
     pub fn from_attrs(attrs: &[syn::Attribute]) -> Result<Self, darling::Error> {
-        let (mut post_construct, mut pre_destroy) = (None, None);
+        let (mut post_construct, mut pre_destroy, mut async_pre_destroy) = (None, None, None);
         let mut errors = DarlingError::accumulator();
         for attr in attrs {
             let (target, name) = if attr.path().is_ident("post_construct") {
                 (&mut post_construct, "post_construct")
             } else if attr.path().is_ident("pre_destroy") {
                 (&mut pre_destroy, "pre_destroy")
+            } else if attr.path().is_ident("async_pre_destroy") {
+                (&mut async_pre_destroy, "async_pre_destroy")
             } else {
                 continue;
             };
@@ -30,11 +33,16 @@ impl InjectableAttrs {
         Ok(Self {
             post_construct,
             pre_destroy,
+            async_pre_destroy,
         })
     }
 
     pub fn strip_from(attrs: &mut Vec<syn::Attribute>) {
-        attrs.retain(|a| !a.path().is_ident("post_construct") && !a.path().is_ident("pre_destroy"));
+        attrs.retain(|a| {
+            !a.path().is_ident("post_construct")
+                && !a.path().is_ident("pre_destroy")
+                && !a.path().is_ident("async_pre_destroy")
+        });
     }
 }
 

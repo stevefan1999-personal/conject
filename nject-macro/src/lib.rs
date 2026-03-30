@@ -19,7 +19,7 @@ use provider::handle_provider;
 /// For internal purposes only. Should not be used.
 #[proc_macro_derive(
     InjectableHelperAttr,
-    attributes(inject, post_construct, pre_destroy, assisted)
+    attributes(inject, post_construct, pre_destroy, async_pre_destroy, assisted)
 )]
 pub fn injectable_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
