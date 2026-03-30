@@ -61,7 +61,7 @@ pub mod provide;
 #[cfg(test)]
 pub mod scope;
 
-use nject::{inject, injectable, module};
+use conject::{inject, injectable, module};
 
 pub const ITERATION_COUNT: i32 = 10000;
 

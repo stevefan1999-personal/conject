@@ -3,7 +3,7 @@
 //! Demonstrates reading environment variables at construction time,
 //! with optional default values when the variable is not set.
 
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 #[injectable]
 struct AppConfig {

@@ -1,9 +1,9 @@
 #![allow(dead_code)]
-//! Example demonstrating async dependency injection with nject.
+//! Example demonstrating async dependency injection with conject.
 //!
-//! Run with: `cargo run --example async_init -p nject`
+//! Run with: `cargo run --example async_init -p conject`
 
-use nject::{async_injectable, injectable, provider};
+use conject::{async_injectable, injectable, provider};
 
 /// A configuration value that is synchronously injectable.
 #[injectable]
@@ -37,20 +37,15 @@ struct AppService {
 #[provider]
 struct AppProvider;
 
-fn main() {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .unwrap();
+#[tokio::main]
+async fn main() {
+    let provider = AppProvider;
 
-    rt.block_on(async {
-        let provider = AppProvider;
+    // Async provide
+    let service: AppService = provider.provide_async().await;
+    println!("Service: {service:#?}");
 
-        // Async provide
-        let service: AppService = provider.provide_async().await;
-        println!("Service: {service:#?}");
-
-        // Sync provide still works
-        let config: Config = provider.provide();
-        println!("Config: {config:#?}");
-    });
+    // Sync provide still works
+    let config: Config = provider.provide();
+    println!("Config: {config:#?}");
 }

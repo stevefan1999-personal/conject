@@ -1,5 +1,5 @@
+use conject::{injectable, module};
 pub use models::*;
-use nject::{injectable, module};
 use repository::Repository;
 pub use service::UserService;
 mod models;

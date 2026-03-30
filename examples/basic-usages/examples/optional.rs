@@ -1,10 +1,10 @@
 #![allow(dead_code)]
-//! Example demonstrating optional dependency injection with nject.
+//! Example demonstrating optional dependency injection with conject.
 //!
 //! `Option<T>` fields without `#[inject]` default to `None`.
 //! Use `#[inject(Some(...))]` to provide an explicit value.
 
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 /// A required dependency.
 #[injectable]

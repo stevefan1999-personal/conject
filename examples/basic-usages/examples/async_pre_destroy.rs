@@ -1,4 +1,4 @@
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 #[injectable]
 #[async_pre_destroy(Self::shutdown)]
@@ -20,18 +20,13 @@ struct Connection(#[inject(1)] i32);
 #[provider]
 struct Provider;
 
-fn main() {
-    let rt = tokio::runtime::Builder::new_current_thread()
-        .build()
-        .unwrap();
-
-    rt.block_on(async {
-        println!("Creating resources...");
-        let mut pool: DbPool = Provider.provide();
-        let mut conn: Connection = Provider.provide();
-        println!("Resources in scope.");
-        pool.destroy().await;
-        conn.destroy().await;
-        println!("Resources cleaned up.");
-    });
+#[tokio::main]
+async fn main() {
+    println!("Creating resources...");
+    let mut pool: DbPool = Provider.provide();
+    let mut conn: Connection = Provider.provide();
+    println!("Resources in scope.");
+    pool.destroy().await;
+    conn.destroy().await;
+    println!("Resources cleaned up.");
 }

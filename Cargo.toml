@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 default-members = [
-    'nject',
-    'nject-macro'
+    'conject',
+    'conject-macro'
 ]
 members = [
-    'nject',
-    'nject-macro',
+    'conject',
+    'conject-macro',
     'examples/*'
 ]

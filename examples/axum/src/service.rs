@@ -2,7 +2,7 @@ use crate::{
     models::{CreateUser, User},
     repository::Repository,
 };
-use nject::injectable;
+use conject::injectable;
 
 #[injectable]
 pub struct UserService<'a> {

@@ -1,6 +1,6 @@
 use super::store::CounterStore;
 use crate::Provider;
-use nject::injectable;
+use conject::injectable;
 
 #[injectable]
 pub struct CounterService {

@@ -1,6 +1,6 @@
-//! Hierarchical scopes example: demonstrates nested scope patterns with nject.
+//! Hierarchical scopes example: demonstrates nested scope patterns with conject.
 //!
-//! nject's `#[scope]` creates child providers that wrap the parent, giving
+//! conject's `#[scope]` creates child providers that wrap the parent, giving
 //! child scopes access to everything the parent provides. This example shows:
 //!
 //! - Basic scoping (child accesses parent-provided types)
@@ -9,7 +9,7 @@
 //! - Multiple independent named scopes on the same provider
 #![allow(dead_code)]
 
-use nject::{inject, injectable, provider};
+use conject::{inject, injectable, provider};
 
 // ---------------------------------------------------------------------------
 // 1. Basic scope: child inherits parent provides

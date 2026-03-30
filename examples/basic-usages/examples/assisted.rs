@@ -4,7 +4,7 @@
 //! Demonstrates using `#[assisted]` to mark fields that are provided by the
 //! caller at creation time rather than resolved from the DI container.
 
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 /// A database pool that is managed by the DI container.
 #[injectable]

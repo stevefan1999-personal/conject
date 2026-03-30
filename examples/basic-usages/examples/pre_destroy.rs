@@ -1,4 +1,4 @@
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 #[injectable]
 #[pre_destroy(Self::cleanup)]

@@ -8,7 +8,7 @@ use axum::{
 use axum_example::CreateUser;
 use axum_example::Module;
 use axum_example::UserService;
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 
 #[provider]
 #[injectable]

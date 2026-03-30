@@ -3,7 +3,7 @@ use super::{
     models::{CreateUser, User},
     repository::UserRepository,
 };
-use nject::injectable;
+use conject::injectable;
 
 #[injectable]
 pub struct UserService {

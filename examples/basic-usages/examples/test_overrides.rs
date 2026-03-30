@@ -6,7 +6,7 @@
 //! mock/stub implementations for the types you want to override.
 #![allow(dead_code)]
 
-use nject::{injectable, module, provider};
+use conject::{injectable, module, provider};
 
 // ── Production domain types ────────────────────────────────────────
 
@@ -68,7 +68,9 @@ impl UserRepository {
         if let Some(cached) = self.cache.get(&format!("user:{}", id)) {
             return cached;
         }
-        let results = self.db.query(&format!("SELECT * FROM users WHERE id = {}", id));
+        let results = self
+            .db
+            .query(&format!("SELECT * FROM users WHERE id = {}", id));
         results.into_iter().next().unwrap_or_default()
     }
 }
@@ -131,7 +133,10 @@ fn main() {
         let provider = InitProvider.provide::<AppProvider>();
 
         let svc: UserService = provider.provide();
-        println!("Config: db_url={}, cache_ttl={}", svc.config.db_url, svc.config.cache_ttl);
+        println!(
+            "Config: db_url={}, cache_ttl={}",
+            svc.config.db_url, svc.config.cache_ttl
+        );
         println!("User lookup: {}", svc.repo.find_user(1));
     }
 
@@ -146,7 +151,10 @@ fn main() {
         struct TestProvider;
 
         let svc: UserService = TestProvider.provide();
-        println!("Config: db_url={}, cache_ttl={}", svc.config.db_url, svc.config.cache_ttl);
+        println!(
+            "Config: db_url={}, cache_ttl={}",
+            svc.config.db_url, svc.config.cache_ttl
+        );
         println!("User lookup: {}", svc.repo.find_user(1));
 
         assert_eq!(svc.config.db_url, "test://memory");
@@ -167,7 +175,10 @@ fn main() {
         struct PartialTestProvider;
 
         let svc: UserService = PartialTestProvider.provide();
-        println!("Config: db_url={}, cache_ttl={}", svc.config.db_url, svc.config.cache_ttl);
+        println!(
+            "Config: db_url={}, cache_ttl={}",
+            svc.config.db_url, svc.config.cache_ttl
+        );
         println!("User lookup: {}", svc.repo.find_user(1));
 
         assert_eq!(svc.config.db_url, "postgres://test:5432/testdb");

@@ -7,4 +7,4 @@ edition = "2024"
 
 [dependencies]
 leptos = "0.8"
-nject = { path = "../../nject" }
+conject = { path = "../../conject" }

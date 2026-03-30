@@ -1,5 +1,5 @@
 use super::*;
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 use test::Bencher;
 
 #[bench]

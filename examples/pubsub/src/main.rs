@@ -1,4 +1,4 @@
-use nject::{Iterable, injectable, provider};
+use conject::{Iterable, injectable, provider};
 use pubsub::{FirstMessage, SecondMessage, Subscriber};
 
 #[injectable]

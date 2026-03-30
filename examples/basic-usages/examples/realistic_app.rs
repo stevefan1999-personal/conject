@@ -1,7 +1,7 @@
 //! Realistic example: A web service with database, cache, auth, and logging.
 #![allow(dead_code)]
 
-use nject::{init, injectable, module, provider};
+use conject::{init, injectable, module, provider};
 
 // -- Domain types --------------------------------------------------------
 

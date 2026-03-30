@@ -1,5 +1,5 @@
 use super::{Repository, User};
-use nject::inject;
+use conject::inject;
 use std::sync::Mutex;
 
 #[inject(Self { users: Mutex::new(Vec::new()) })]

@@ -1,8 +1,8 @@
-//! Example demonstrating `Lazy<T>` and `Factory<T>` types in nject.
+//! Example demonstrating `Lazy<T>` and `Factory<T>` types in conject.
 //!
-//! Run with: `cargo run --example lazy_factory -p nject`
+//! Run with: `cargo run --example lazy_factory -p conject`
 
-use nject::{Factory, Lazy, injectable, provider};
+use conject::{Factory, Lazy, injectable, provider};
 
 // A dependency that might be expensive to construct.
 #[injectable]

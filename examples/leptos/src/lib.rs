@@ -1,6 +1,6 @@
 mod counter;
+use conject::{injectable, provider};
 pub use counter::*;
-use nject::{injectable, provider};
 
 const PROVIDER: *mut Provider = std::ptr::null_mut();
 
@@ -25,7 +25,7 @@ impl Provider {
     /// The PROVIDER must be initialized before calling inject.
     pub fn inject<'prov, T>() -> T
     where
-        Provider: nject::Provider<'prov, T>,
+        Provider: conject::Provider<'prov, T>,
     {
         unsafe { (*PROVIDER).provide() }
     }

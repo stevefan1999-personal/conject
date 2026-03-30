@@ -1,4 +1,4 @@
-use nject::{injectable, module};
+use conject::{injectable, module};
 
 #[injectable]
 struct Subscriber;

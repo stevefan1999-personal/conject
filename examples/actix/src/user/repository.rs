@@ -2,7 +2,7 @@ use super::{
     errors::Error,
     models::{CreateUser, User},
 };
-use nject::injectable;
+use conject::injectable;
 use sqlx::{query, query_as};
 
 #[injectable]

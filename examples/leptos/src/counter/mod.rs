@@ -2,7 +2,7 @@ mod component;
 mod service;
 mod store;
 pub use component::SimpleCounter;
-use nject::{injectable, module};
+use conject::{injectable, module};
 
 #[injectable]
 #[module]

@@ -1,4 +1,4 @@
-use nject::{Late, injectable, provider};
+use conject::{Late, injectable, provider};
 use std::sync::Arc;
 
 #[injectable]
@@ -31,5 +31,5 @@ fn main() {
 
     println!("A.id = {}", a.id);
     println!("B -> A.id = {}", b.dep.id);
-    println!("A -> B -> A.id = {}", a.dep.dep.id);
+    println!("A -> B -> A.id = {}", a.dep.get().unwrap().dep.id);
 }

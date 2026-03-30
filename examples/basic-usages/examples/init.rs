@@ -4,7 +4,7 @@
 //! - Expression: `let p: Provider = init!(M1, M2);` — for modules with owned exports
 //! - Block: `init! { let p: Provider = M1, M2; }` — also supports borrowed exports
 
-use nject::{init, injectable, module, provider};
+use conject::{init, injectable, module, provider};
 
 // --- Module definitions ---
 

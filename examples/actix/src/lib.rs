@@ -5,7 +5,7 @@ use actix_web::{
     dev::{ServiceFactory, ServiceRequest, ServiceResponse},
     web::Data,
 };
-use nject::{injectable, provider};
+use conject::{injectable, provider};
 use user::{ConnectionOptions, UserModule};
 
 type Prov = Data<Provider>;
