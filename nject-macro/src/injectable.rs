@@ -21,6 +21,15 @@ fn is_option_type(ty: &Type) -> bool {
     false
 }
 
+fn is_late_type(ty: &Type) -> bool {
+    if let Type::Path(p) = ty {
+        if let Some(segment) = p.path.segments.last() {
+            return segment.ident == "Late";
+        }
+    }
+    false
+}
+
 enum InjectExpr {
     /// A direct expression, optionally with factory inputs: `expr` or `|dep: T| expr`
     Value(Box<Expr>, Vec<PatType>),
@@ -122,6 +131,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                     }
                 }
                 None if is_option_type(ty) => quote! { None },
+                None if is_late_type(ty) => quote! { nject::Late::new() },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
@@ -151,6 +161,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                     }
                 }
                 None if is_option_type(ty) => quote! { #k: None },
+                None if is_late_type(ty) => quote! { #k: nject::Late::new() },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -170,7 +181,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                     prov_types.push(quote! {#attr_type});
                 }
             }
-            None if !is_option_type(t) => {
+            None if !is_option_type(t) && !is_late_type(t) => {
                 prov_types.push(quote! {#t});
             }
             None => {}
