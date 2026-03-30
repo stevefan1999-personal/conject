@@ -466,6 +466,47 @@ impl<T> Clone for Factory<T> {
 
 impl<T> Copy for Factory<T> {}
 
+/// A factory that captures its environment and creates new instances of `T`
+/// each time [`create`](DynFactory::create) is called.
+///
+/// Unlike [`Factory<T>`] which wraps a bare function pointer (`fn() -> T`),
+/// `DynFactory<T>` wraps a boxed closure (`Box<dyn Fn() -> T>`), allowing it
+/// to capture state such as a provider reference, counters, or configuration.
+///
+/// # Example
+/// ```rust
+/// use nject::{provider, DynFactory};
+///
+/// #[provider]
+/// #[provide(DynFactory<i32>, DynFactory::new(|| 42))]
+/// struct Provider;
+///
+/// let factory: DynFactory<i32> = Provider.provide();
+/// assert_eq!(factory.create(), 42);
+/// ```
+#[cfg(feature = "alloc")]
+pub struct DynFactory<T>(alloc::boxed::Box<dyn Fn() -> T>);
+
+#[cfg(feature = "alloc")]
+impl<T> DynFactory<T> {
+    /// Creates a new `DynFactory` from a closure or function.
+    pub fn new(f: impl Fn() -> T + 'static) -> Self {
+        Self(alloc::boxed::Box::new(f))
+    }
+
+    /// Creates a new instance of `T` by calling the factory closure.
+    pub fn create(&self) -> T {
+        (self.0)()
+    }
+}
+
+#[cfg(feature = "alloc")]
+impl<T> core::fmt::Debug for DynFactory<T> {
+    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
+        f.write_str("DynFactory(<fn>)")
+    }
+}
+
 /// For internal purposes only. Should not be used.
 #[doc(hidden)]
 pub trait RefInjectable<'prov, Value, Provider> {
