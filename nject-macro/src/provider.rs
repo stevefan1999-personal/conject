@@ -25,6 +25,52 @@ impl Parse for ProvideStructInput {
     }
 }
 
+/// Parsed representation of `#[decorate(Type, |var| expr)]`.
+/// The closure takes the already-provided value and wraps/decorates it.
+struct DecorateStructInput {
+    ty: Type,
+    var: Ident,
+    expr: Box<Expr>,
+}
+impl Parse for DecorateStructInput {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
+        let parsed_type: Type = input.parse()?;
+        input.parse::<Token![,]>()?;
+        let closure: syn::ExprClosure = input.parse()?;
+        if closure.inputs.len() != 1 {
+            return Err(syn::Error::new(
+                closure.span(),
+                "Decorate closure must have exactly one parameter.",
+            ));
+        }
+        let param = &closure.inputs[0];
+        let var = match param {
+            syn::Pat::Ident(pat_ident) => pat_ident.ident.clone(),
+            syn::Pat::Type(pat_type) => {
+                if let syn::Pat::Ident(pat_ident) = &*pat_type.pat {
+                    pat_ident.ident.clone()
+                } else {
+                    return Err(syn::Error::new(
+                        param.span(),
+                        "Decorate closure parameter must be an identifier.",
+                    ));
+                }
+            }
+            _ => {
+                return Err(syn::Error::new(
+                    param.span(),
+                    "Decorate closure parameter must be an identifier.",
+                ));
+            }
+        };
+        Ok(DecorateStructInput {
+            ty: parsed_type,
+            var,
+            expr: closure.body,
+        })
+    }
+}
+
 type ProvideFieldInput = FieldFactoryExpr;
 
 pub(crate) fn handle_provider(
@@ -73,6 +119,11 @@ pub(crate) fn handle_provider(
         .iter()
         .filter(|a| a.path().is_ident("provide"))
         .collect::<Vec<_>>();
+    let decorate_input_attr = input
+        .attrs
+        .iter()
+        .filter(|a| a.path().is_ident("decorate"))
+        .collect::<Vec<_>>();
     let scope_attr = input
         .attrs
         .iter()
@@ -104,6 +155,7 @@ pub(crate) fn handle_provider(
         &generic_keys,
         &where_predicates,
         &provide_input_attr,
+        &decorate_input_attr,
     );
     let scope_output = gen_scope_output(GenScopeOuptutInput {
         visibility: &input.vis,
@@ -115,6 +167,7 @@ pub(crate) fn handle_provider(
         import_attr_indexes: &import_attr_indexes,
         provide_attr_indexes: &provide_attr_indexes,
         provide_input_attr: &provide_input_attr,
+        decorate_input_attr: &decorate_input_attr,
         scope_input_attr: &scope_attr,
     })?;
 
@@ -380,7 +433,20 @@ pub(crate) fn gen_providers_for_provide_attr_on_struct(
     generic_keys: &[proc_macro2::TokenStream],
     where_predicates: &proc_macro2::TokenStream,
     provide_input_attr: &[&syn::Attribute],
+    decorate_input_attr: &[&syn::Attribute],
 ) -> Vec<proc_macro2::TokenStream> {
+    // Parse all decorators and group them by type token string for lookup
+    let parsed_decorators: Vec<DecorateStructInput> = decorate_input_attr
+        .iter()
+        .map(|a| a.parse_args::<DecorateStructInput>().unwrap())
+        .collect();
+    let mut decor_by_type = std::collections::HashMap::<String, Vec<&DecorateStructInput>>::new();
+    for d in &parsed_decorators {
+        let ty = &d.ty;
+        let key = quote! { #ty }.to_string();
+        decor_by_type.entry(key).or_default().push(d);
+    }
+
     let input_provide_outputs = provide_input_attr
         .iter()
         .map(|a| a.parse_args::<ProvideStructInput>().unwrap())
@@ -389,6 +455,32 @@ pub(crate) fn gen_providers_for_provide_attr_on_struct(
                 ProvideStructInput::TypeExpr(t, v) => (t, vec![], v),
                 ProvideStructInput::TypeExprFact(t, i, v) =>(t, i, v),
             };
+            let type_key = quote! { #ty }.to_string();
+            let decorators = decor_by_type.get(&type_key);
+            let body = if let Some(decorators) = decorators {
+                // Generate chained decoration: base value -> decorator 1 -> decorator 2 -> ...
+                let decorator_steps = decorators.iter().map(|d| {
+                    let var = &d.var;
+                    let expr = &d.expr;
+                    quote! {
+                        let __nject_inner = {
+                            let #var = __nject_inner;
+                            #expr
+                        };
+                    }
+                });
+                quote! {
+                    #(let #inputs = self.provide();)*
+                    let __nject_inner = { #value };
+                    #(#decorator_steps)*
+                    __nject_inner
+                }
+            } else {
+                quote! {
+                    #(let #inputs = self.provide();)*
+                    #value
+                }
+            };
             quote!{
 
                 impl<'prov, #(#generic_params),*> nject::Provider<'prov, #ty> for #ident<#(#generic_keys),*>
@@ -396,8 +488,7 @@ pub(crate) fn gen_providers_for_provide_attr_on_struct(
                 {
                     #[inline]
                     fn provide(&'prov self) -> #ty {
-                        #(let #inputs = self.provide();)*
-                        #value
+                        #body
                     }
                 }
             }
@@ -415,6 +506,7 @@ struct GenScopeOuptutInput<'a> {
     import_attr_indexes: &'a [usize],
     provide_attr_indexes: &'a [(usize, Vec<&'a syn::Attribute>)],
     provide_input_attr: &'a [&'a syn::Attribute],
+    decorate_input_attr: &'a [&'a syn::Attribute],
     scope_input_attr: &'a [&'a syn::Attribute],
 }
 
@@ -429,6 +521,7 @@ fn gen_scope_output(
         import_attr_indexes,
         provide_attr_indexes,
         provide_input_attr,
+        decorate_input_attr,
         scope_input_attr,
     }: GenScopeOuptutInput<'_>,
 ) -> syn::Result<proc_macro2::TokenStream> {
@@ -480,7 +573,7 @@ fn gen_scope_output(
         let fields_path_prefix = quote!{#root_path.};
         let import_outputs = gen_imports_for_import_attr(&scope_ident, &scope_generic_params, &scope_generic_keys, where_predicates, &fields_path_prefix, fields, import_attr_indexes);
         let provide_outputs = gen_providers_for_provide_attr_on_fields(&scope_ident, &scope_generic_params, &scope_generic_keys, where_predicates, &fields_path_prefix, fields, provide_attr_indexes);
-        let input_provide_outputs = gen_providers_for_provide_attr_on_struct(&scope_ident, &scope_generic_params, &scope_generic_keys, where_predicates, provide_input_attr);
+        let input_provide_outputs = gen_providers_for_provide_attr_on_struct(&scope_ident, &scope_generic_params, &scope_generic_keys, where_predicates, provide_input_attr, decorate_input_attr);
         let scope_field_provides = scope_fields.iter()
             .enumerate()
             .map(|(i, _)| match arg_scope_fields[i] {
