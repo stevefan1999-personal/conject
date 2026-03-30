@@ -1,4 +1,5 @@
 use crate::core::FactoryExpr;
+use darling::FromMeta;
 use syn::{
     Expr, PatType, Token, Type,
     parse::{Parse, ParseStream},
@@ -50,6 +51,61 @@ impl Parse for InjectExpr {
         } else {
             Ok(InjectExpr::Value(input.parse()?, vec![]))
         }
+    }
+}
+
+/// darling integration: allows `#[inject(expr)]` to be parsed via darling's `FromMeta`.
+///
+/// Uses `from_expr` for valid Rust expressions (covers `42`, `MyStruct { v: 1 }`,
+/// `|dep: T| expr`, `named(Tag)`, etc.) and `from_list` for parenthesized token streams
+/// that darling can't parse as expressions.
+impl FromMeta for InjectExpr {
+    fn from_expr(expr: &Expr) -> darling::Result<Self> {
+        // Closures: |dep: T| expr
+        if let Expr::Closure(closure) = expr {
+            let mut inputs = Vec::with_capacity(closure.inputs.len());
+            for input in &closure.inputs {
+                if let syn::Pat::Type(pat_type) = input {
+                    inputs.push(pat_type.clone());
+                } else {
+                    return Err(darling::Error::custom(format!(
+                        "Invalid closure input: {}",
+                        quote::quote! { #input }
+                    )));
+                }
+            }
+            return Ok(InjectExpr::Value(closure.body.clone(), inputs));
+        }
+
+        // named(Tag) or named("key") — appears as a function call expression
+        if let Expr::Call(call) = expr {
+            if let Expr::Path(path) = &*call.func {
+                if path.path.is_ident("named") && call.args.len() == 1 {
+                    let arg = &call.args[0];
+                    // named("key") — string literal
+                    if let Expr::Lit(syn::ExprLit {
+                        lit: syn::Lit::Str(lit_str),
+                        ..
+                    }) = arg
+                    {
+                        let hash_bytes = crate::core::hash::fnv(lit_str.value().as_bytes());
+                        let hash = u128::from_be_bytes(hash_bytes);
+                        return Ok(InjectExpr::NamedStr(hash));
+                    }
+                    // named(TagType) — parse the arg as a type path
+                    if let Expr::Path(type_path) = arg {
+                        let ty: Type = Type::Path(syn::TypePath {
+                            qself: type_path.qself.clone(),
+                            path: type_path.path.clone(),
+                        });
+                        return Ok(InjectExpr::Named(ty));
+                    }
+                }
+            }
+        }
+
+        // Everything else: direct expression
+        Ok(InjectExpr::Value(Box::new(expr.clone()), vec![]))
     }
 }
 
