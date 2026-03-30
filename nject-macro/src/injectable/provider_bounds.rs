@@ -21,6 +21,9 @@ pub(crate) fn build_provider_bounds(
                     prov_types.push(quote! { #attr_type });
                 }
             }
+            Some(InjectExpr::Env(..)) => {
+                // Env injection is self-contained; no provider bounds needed.
+            }
             None if !is_type_named(t, "Option")
                 && !is_type_named(t, "Late")
                 && !is_type_named(t, "Lazy") =>

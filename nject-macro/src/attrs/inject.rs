@@ -10,24 +10,39 @@ pub enum InjectExpr {
     Value(Box<Expr>, Vec<PatType>),
     Named(Type),
     NamedStr(u128),
+    /// Environment variable injection: `env("KEY")` or `env("KEY", default_expr)`
+    Env(String, Option<Box<Expr>>),
 }
 
 impl Parse for InjectExpr {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         if input.peek(syn::Ident) {
             let fork = input.fork();
-            if let Ok(ident) = fork.parse::<syn::Ident>()
-                && ident == "named"
-            {
-                input.parse::<syn::Ident>()?;
-                let content;
-                syn::parenthesized!(content in input);
-                if content.peek(syn::LitStr) {
-                    let lit: syn::LitStr = content.parse()?;
-                    let hash = const_fnv1a_hash::fnv1a_hash_str_128(&lit.value());
-                    return Ok(InjectExpr::NamedStr(hash));
+            if let Ok(ident) = fork.parse::<syn::Ident>() {
+                if ident == "named" {
+                    input.parse::<syn::Ident>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    if content.peek(syn::LitStr) {
+                        let lit: syn::LitStr = content.parse()?;
+                        let hash = const_fnv1a_hash::fnv1a_hash_str_128(&lit.value());
+                        return Ok(InjectExpr::NamedStr(hash));
+                    }
+                    return Ok(InjectExpr::Named(content.parse()?));
                 }
-                return Ok(InjectExpr::Named(content.parse()?));
+                if ident == "env" {
+                    input.parse::<syn::Ident>()?;
+                    let content;
+                    syn::parenthesized!(content in input);
+                    let key: syn::LitStr = content.parse()?;
+                    let default = if content.peek(Token![,]) {
+                        content.parse::<Token![,]>()?;
+                        Some(Box::new(content.parse::<Expr>()?))
+                    } else {
+                        None
+                    };
+                    return Ok(InjectExpr::Env(key.value(), default));
+                }
             }
         }
         if input.peek(Token![|]) {
@@ -77,6 +92,26 @@ impl FromMeta for InjectExpr {
                 })));
             }
         }
+
+        if let Expr::Call(call) = expr
+            && let Expr::Path(path) = &*call.func
+            && path.path.is_ident("env")
+            && (call.args.len() == 1 || call.args.len() == 2)
+        {
+            if let Expr::Lit(syn::ExprLit {
+                lit: syn::Lit::Str(lit_str),
+                ..
+            }) = &call.args[0]
+            {
+                let default = if call.args.len() == 2 {
+                    Some(Box::new(call.args[1].clone()))
+                } else {
+                    None
+                };
+                return Ok(InjectExpr::Env(lit_str.value(), default));
+            }
+        }
+
         Ok(InjectExpr::Value(Box::new(expr.clone()), vec![]))
     }
 }
