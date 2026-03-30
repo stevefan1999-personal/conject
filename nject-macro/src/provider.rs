@@ -193,6 +193,15 @@ pub(crate) fn handle_provider(
             }
         }
 
+        impl<'prov, #(#generic_params,)*Njecty> nject::AsyncProvider<'prov, Njecty> for #ident<#(#generic_keys),*>
+        where Njecty: nject::AsyncInjectable<'prov, Njecty, #ident<#(#generic_keys),*>>, #where_predicates
+        {
+            #[inline]
+            fn provide(&'prov self) -> impl core::future::Future<Output = Njecty> {
+                Njecty::inject(self)
+            }
+        }
+
         impl<#(#generic_params),*> #ident<#(#generic_keys),*>
         where #where_predicates
         {
@@ -201,6 +210,17 @@ pub(crate) fn handle_provider(
             where Self: nject::Provider<'prov, Njecty>
             {
                 <Self as nject::Provider<'prov, Njecty>>::provide(self)
+            }
+        }
+
+        impl<#(#generic_params),*> #ident<#(#generic_keys),*>
+        where #where_predicates
+        {
+            #[inline]
+            pub fn provide_async<'prov, Njecty>(&'prov self) -> impl core::future::Future<Output = Njecty>
+            where Self: nject::AsyncProvider<'prov, Njecty>
+            {
+                <Self as nject::AsyncProvider<'prov, Njecty>>::provide(self)
             }
         }
 

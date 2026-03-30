@@ -1,11 +1,13 @@
 #![allow(clippy::needless_doctest_main)]
 #![doc = include_str!("../README.md")]
+mod async_injectable;
 mod core;
 mod init;
 mod inject;
 mod injectable;
 mod module;
 mod provider;
+use async_injectable::handle_async_injectable;
 use init::handle_init;
 use inject::handle_inject;
 use injectable::handle_injectable;
@@ -125,6 +127,29 @@ pub fn key(input: TokenStream) -> TokenStream {
     let hash = core::hash::fnv(lit.value().as_bytes());
     let hash = u128::from_be_bytes(hash);
     quote::quote! { nject::Key<#hash> }.into()
+}
+
+/// Mark a struct as asynchronously injectable.
+/// Uses async fn in traits (stable since Rust 1.75) for zero-cost async DI.
+/// ```rust,no_run
+/// use nject::{async_injectable, provider};
+///
+/// #[async_injectable]
+/// struct Service {
+///     #[inject(42)]
+///     value: i32,
+/// }
+///
+/// #[provider]
+/// struct Provider;
+///
+/// async fn example() {
+///     let svc: Service = Provider.provide_async().await;
+/// }
+/// ```
+#[proc_macro_attribute]
+pub fn async_injectable(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    handle_async_injectable(item).unwrap_or_else(|e| e.to_compile_error().into())
 }
 
 /// Declare a module to export internal types.

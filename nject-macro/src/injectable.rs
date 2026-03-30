@@ -274,6 +274,19 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
             }
         }
 
+        impl<'prov, #(#generic_params,)*NjectProvider> nject::AsyncInjectable<'prov, #ident<#(#generic_keys),*>, NjectProvider> for #ident<#(#generic_keys),*>
+            where
+                #prov_lifetimes
+                NjectProvider: #(nject::Provider<'prov, #prov_types>)+*, #where_predicates
+        {
+            #[inline]
+            fn inject(provider: &'prov NjectProvider) -> impl core::future::Future<Output = #ident<#(#generic_keys),*>> {
+                core::future::ready(
+                    <Self as nject::Injectable<'prov, #ident<#(#generic_keys),*>, NjectProvider>>::inject(provider)
+                )
+            }
+        }
+
         #pre_destroy_output
     };
     Ok(output.into())

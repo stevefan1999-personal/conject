@@ -6,8 +6,8 @@ use core::cell::OnceCell;
 
 #[cfg(feature = "macro")]
 pub use nject_macro::{
-    InjectableHelperAttr, ModuleHelperAttr, ProviderHelperAttr, ScopeHelperAttr, init, inject,
-    injectable, key, module, provider,
+    InjectableHelperAttr, ModuleHelperAttr, ProviderHelperAttr, ScopeHelperAttr, async_injectable,
+    init, inject, injectable, key, module, provider,
 };
 
 /// A late-initialized dependency for breaking circular dependency cycles.
@@ -494,4 +494,46 @@ pub trait RefIterable<'prov, Value, Provider> {
 #[doc(hidden)]
 pub trait Iterable<'prov, T> {
     fn iter(&'prov self) -> impl Iterator<Item = T>;
+}
+
+/// Async version of [`Provider`]. Provide a value asynchronously.
+/// ```rust
+/// use nject::{async_injectable, provider};
+///
+/// #[async_injectable]
+/// struct Service {
+///     #[inject(42)]
+///     value: i32,
+/// }
+///
+/// #[provider]
+/// struct Provider;
+///
+/// # tokio_test::block_on(async {
+/// let svc: Service = Provider.provide_async().await;
+/// # });
+/// ```
+pub trait AsyncProvider<'prov, Value> {
+    fn provide(&'prov self) -> impl core::future::Future<Output = Value>;
+}
+
+/// Async version of [`Injectable`]. Inject dependencies asynchronously.
+/// ```rust
+/// use nject::{async_injectable, provider};
+///
+/// #[async_injectable]
+/// struct Service {
+///     #[inject(42)]
+///     value: i32,
+/// }
+///
+/// #[provider]
+/// struct Provider;
+///
+/// # tokio_test::block_on(async {
+/// let svc: Service = Provider.provide_async().await;
+/// # });
+/// ```
+pub trait AsyncInjectable<'prov, Injecty, Provider> {
+    fn inject(provider: &'prov Provider) -> impl core::future::Future<Output = Injecty>;
 }

@@ -17,6 +17,9 @@ nject-macro = { path = "../nject-macro", version = "0.4.5", optional = true }
 
 [dev-dependencies]
 trybuild = "1"
+nject-macro = { path = "../nject-macro" }
+tokio = { version = "1", features = ["macros", "rt"] }
+tokio-test = "0.4"
 
 [features]
 default = ["macro"]
