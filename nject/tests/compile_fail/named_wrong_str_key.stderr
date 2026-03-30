@@ -1,16 +1,16 @@
-error[E0277]: the trait bound `nject::Named<Key<35884545766218561747518507268035953522>, String>: Injectable<'_, nject::Named<Key<35884545766218561747518507268035953522>, String>, WrongKeyProvider>` is not satisfied
+error[E0277]: the trait bound `nject::Named<Key<221386265656558464564353280376813452410>, String>: Injectable<'_, nject::Named<Key<221386265656558464564353280376813452410>, String>, WrongKeyProvider>` is not satisfied
   --> tests/compile_fail/named_wrong_str_key.rs:16:34
    |
 16 |     let _svc: Service = provider.provide();
    |                                  ^^^^^^^ unsatisfied trait bound
    |
-   = help: the trait `Injectable<'_, nject::Named<Key<35884545766218561747518507268035953522>, String>, WrongKeyProvider>` is not implemented for `nject::Named<Key<35884545766218561747518507268035953522>, String>`
+   = help: the trait `Injectable<'_, nject::Named<Key<221386265656558464564353280376813452410>, String>, WrongKeyProvider>` is not implemented for `nject::Named<Key<221386265656558464564353280376813452410>, String>`
 help: the trait `Injectable<'prov, Service, NjectProvider>` is implemented for `Service`
   --> tests/compile_fail/named_wrong_str_key.rs:4:1
    |
  4 | #[injectable]
    | ^^^^^^^^^^^^^
-note: required for `WrongKeyProvider` to implement `Provider<'_, nject::Named<Key<35884545766218561747518507268035953522>, String>>`
+note: required for `WrongKeyProvider` to implement `Provider<'_, nject::Named<Key<221386265656558464564353280376813452410>, String>>`
   --> tests/compile_fail/named_wrong_str_key.rs:10:1
    |
 10 | #[provider]

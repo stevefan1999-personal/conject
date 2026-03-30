@@ -1,16 +1,16 @@
-error[E0277]: the trait bound `nject::Named<Key<70248561524979824689990959946592054517>, String>: Injectable<'_, nject::Named<Key<70248561524979824689990959946592054517>, String>, EmptyProvider>` is not satisfied
+error[E0277]: the trait bound `nject::Named<Key<137528519410940105820210743244007037165>, String>: Injectable<'_, nject::Named<Key<137528519410940105820210743244007037165>, String>, EmptyProvider>` is not satisfied
   --> tests/compile_fail/named_missing_provider.rs:15:34
    |
 15 |     let _svc: Service = provider.provide();
    |                                  ^^^^^^^ unsatisfied trait bound
    |
-   = help: the trait `Injectable<'_, nject::Named<Key<70248561524979824689990959946592054517>, String>, EmptyProvider>` is not implemented for `nject::Named<Key<70248561524979824689990959946592054517>, String>`
+   = help: the trait `Injectable<'_, nject::Named<Key<137528519410940105820210743244007037165>, String>, EmptyProvider>` is not implemented for `nject::Named<Key<137528519410940105820210743244007037165>, String>`
 help: the trait `Injectable<'prov, Service, NjectProvider>` is implemented for `Service`
   --> tests/compile_fail/named_missing_provider.rs:4:1
    |
  4 | #[injectable]
    | ^^^^^^^^^^^^^
-note: required for `EmptyProvider` to implement `Provider<'_, nject::Named<Key<70248561524979824689990959946592054517>, String>>`
+note: required for `EmptyProvider` to implement `Provider<'_, nject::Named<Key<137528519410940105820210743244007037165>, String>>`
   --> tests/compile_fail/named_missing_provider.rs:10:1
    |
 10 | #[provider]

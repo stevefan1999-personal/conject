@@ -24,7 +24,7 @@ impl Parse for InjectExpr {
                 syn::parenthesized!(content in input);
                 if content.peek(syn::LitStr) {
                     let lit: syn::LitStr = content.parse()?;
-                    let hash = u128::from_be_bytes(crate::core::hash::fnv(lit.value().as_bytes()));
+                    let hash = const_fnv1a_hash::fnv1a_hash_128(lit.value().as_bytes(), None);
                     return Ok(InjectExpr::NamedStr(hash));
                 }
                 return Ok(InjectExpr::Named(content.parse()?));
@@ -62,7 +62,7 @@ impl FromMeta for InjectExpr {
         {
             let arg = &call.args[0];
             if let Expr::Lit(syn::ExprLit { lit: syn::Lit::Str(lit_str), .. }) = arg {
-                let hash = u128::from_be_bytes(crate::core::hash::fnv(lit_str.value().as_bytes()));
+                let hash = const_fnv1a_hash::fnv1a_hash_128(lit_str.value().as_bytes(), None);
                 return Ok(InjectExpr::NamedStr(hash));
             }
             if let Expr::Path(type_path) = arg {

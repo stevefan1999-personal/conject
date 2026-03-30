@@ -125,8 +125,7 @@ pub fn provider(_attr: TokenStream, item: TokenStream) -> TokenStream {
 #[proc_macro]
 pub fn key(input: TokenStream) -> TokenStream {
     let lit: syn::LitStr = syn::parse(input).expect("key! expects a string literal");
-    let hash = core::hash::fnv(lit.value().as_bytes());
-    let hash = u128::from_be_bytes(hash);
+    let hash = const_fnv1a_hash::fnv1a_hash_128(lit.value().as_bytes(), None);
     quote::quote! { nject::Key<#hash> }.into()
 }
 

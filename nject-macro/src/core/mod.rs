@@ -1,4 +1,3 @@
-pub mod hash;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use std::path::PathBuf;

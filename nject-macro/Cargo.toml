@@ -20,6 +20,7 @@ syn = { version = "2", features = ["full"] }
 quote = "1"
 proc-macro2 = "1"
 darling = "0.20"
+const-fnv1a-hash = "1"
 data-encoding = "2"
 itertools = "0.14"
 

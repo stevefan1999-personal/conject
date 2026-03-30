@@ -289,10 +289,9 @@ pub struct Key<const K: u128>;
 /// This uses the same algorithm as the internal module hashing,
 /// producing a deterministic `u128` from any `&str`.
 pub const fn str_key_hash(s: &str) -> u128 {
-    // FNV-1a parameters for 128-bit
-    // https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function#FNV_hash_parameters
+    // Standard FNV-1a 128-bit parameters (matches const-fnv1a-hash crate)
     const FNV_OFFSET_BASIS: u128 = 0x6c62272e07bb014262b821756295c58d;
-    const FNV_PRIME: u128 = 0x00000100000001b3;
+    const FNV_PRIME: u128 = 0x0000000001000000000000000000013b;
 
     let bytes = s.as_bytes();
     let mut hash = FNV_OFFSET_BASIS;

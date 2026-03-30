@@ -1,5 +1,5 @@
 use super::models::{Module, ModuleKey};
-use crate::core::{cache_path, hash::fnv, retry};
+use crate::core::{cache_path, retry};
 use std::{
     collections::HashMap,
     io::{BufRead, Write},
@@ -116,7 +116,7 @@ pub(crate) fn ensure(module: Module) {
 
 fn to_file_name(data: &[u8]) -> String {
     if data.len() > 40 {
-        let hash = fnv(data);
+        let hash = const_fnv1a_hash::fnv1a_hash_128(data, None).to_be_bytes();
         let mut combined = Vec::with_capacity(48);
         combined.extend_from_slice(&data[..32]);
         combined.extend_from_slice(&hash);
