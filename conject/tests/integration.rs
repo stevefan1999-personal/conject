@@ -1,7 +1,7 @@
 //! Integration tests combining multiple conject features together.
 #![allow(dead_code)]
 
-use conject::{Factory, Late, Lazy, Named, init, injectable, key, module, provider};
+use conject::{Factory, Late, Lazy, Named, create, init, inject, injectable, key, module, provider};
 use std::sync::Arc;
 
 // -- Realistic app modules -----------------------------------------------
@@ -389,4 +389,59 @@ fn mixed_named_types_and_string_keys() {
     assert_eq!(svc.primary_url, "https://primary.example.com");
     assert_eq!(svc.fallback_url, "https://fallback.example.com");
     assert_eq!(svc.timeout_ms, 42);
+}
+
+// ── create() — no provider needed ──────────────────────────────────
+
+#[test]
+fn create_without_provider_struct() {
+    #[inject(Self { url: "postgres://localhost".into() })]
+    #[derive(Debug)]
+    struct Database { url: String }
+
+    #[inject(Self { ttl: 300 })]
+    #[derive(Debug)]
+    struct Cache { ttl: u32 }
+
+    #[injectable]
+    #[derive(Debug)]
+    struct UserService { db: Database, cache: Cache }
+
+    // No #[provider] struct needed!
+    let svc: UserService = create();
+    assert_eq!(svc.db.url, "postgres://localhost");
+    assert_eq!(svc.cache.ttl, 300);
+}
+
+#[test]
+fn create_with_nested_deps() {
+    #[inject(Self(42))]
+    #[derive(Debug, PartialEq)]
+    struct Config(i32);
+
+    #[injectable]
+    #[derive(Debug, PartialEq)]
+    struct Repo(Config);
+
+    #[injectable]
+    #[derive(Debug, PartialEq)]
+    struct Service(Repo);
+
+    let svc: Service = create();
+    assert_eq!(svc.0.0.0, 42);
+}
+
+#[test]
+fn create_with_optional_deps() {
+    #[injectable]
+    #[derive(Debug)]
+    struct ServiceWithOptional {
+        #[inject(42)]
+        port: i32,
+        cache: Option<String>,
+    }
+
+    let svc: ServiceWithOptional = create();
+    assert_eq!(svc.port, 42);
+    assert!(svc.cache.is_none());
 }

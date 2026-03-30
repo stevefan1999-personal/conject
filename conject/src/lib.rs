@@ -124,6 +124,40 @@ pub trait Injectable<'prov, Injecty, Provider> {
     fn inject(provider: &'prov Provider) -> Injecty;
 }
 
+/// A built-in empty provider for the simplest use case.
+///
+/// Used by [`create()`] so you don't need to define a `#[provider]` struct
+/// when all your types use `#[inject]` or `#[injectable]`.
+pub struct DefaultProvider;
+
+impl<'prov, T: Injectable<'prov, T, DefaultProvider>> Provider<'prov, T> for DefaultProvider {
+    #[inline]
+    fn provide(&'prov self) -> T {
+        T::inject(self)
+    }
+}
+
+/// Create any injectable type without defining a provider struct.
+///
+/// This is the simplest way to use conject — just annotate your types and call `create()`.
+///
+/// ```rust
+/// use conject::{inject, injectable, create};
+///
+/// #[inject(Self { url: "postgres://localhost".into() })]
+/// struct Database { url: String }
+///
+/// #[injectable]
+/// struct Service { db: Database }
+///
+/// let svc: Service = create();
+/// assert_eq!(svc.db.url, "postgres://localhost");
+/// ```
+#[inline]
+pub fn create<T: for<'prov> Injectable<'prov, T, DefaultProvider>>() -> T {
+    T::inject(&DefaultProvider)
+}
+
 /// Import exportations made from a module. Should be used with the `import` macro for a better experience.
 /// ```rust
 /// use conject::{injectable, provider};
