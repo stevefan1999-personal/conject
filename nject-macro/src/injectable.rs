@@ -7,29 +7,6 @@ use syn::{
     spanned::Spanned,
 };
 
-fn is_option_type(ty: &Type) -> bool {
-    if let Type::Path(type_path) = ty {
-        let last_segment = type_path.path.segments.last();
-        if let Some(segment) = last_segment {
-            if segment.ident == "Option" {
-                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
-                    return args.args.len() == 1;
-                }
-            }
-        }
-    }
-    false
-}
-
-fn is_late_type(ty: &Type) -> bool {
-    if let Type::Path(p) = ty {
-        if let Some(segment) = p.path.segments.last() {
-            return segment.ident == "Late";
-        }
-    }
-    false
-}
-
 enum InjectExpr {
     /// A direct expression, optionally with factory inputs: `expr` or `|dep: T| expr`
     Value(Box<Expr>, Vec<PatType>),
@@ -68,6 +45,19 @@ impl Parse for InjectExpr {
         } else {
             Ok(InjectExpr::Value(input.parse()?, vec![]))
         }
+    }
+}
+
+/// Check if a type's last path segment matches the given name (e.g. "Lazy").
+fn is_type_named(ty: &Type, name: &str) -> bool {
+    match ty {
+        Type::Path(type_path) => type_path
+            .path
+            .segments
+            .last()
+            .map(|seg| seg.ident == name)
+            .unwrap_or(false),
+        _ => false,
     }
 }
 
@@ -130,8 +120,9 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
-                None if is_option_type(ty) => quote! { None },
-                None if is_late_type(ty) => quote! { nject::Late::new() },
+                None if is_type_named(ty, "Option") => quote! { None },
+                None if is_type_named(ty, "Late") => quote! { nject::Late::new() },
+                None if is_type_named(ty, "Lazy") => quote! { nject::Lazy::new() },
                 None => quote! { provider.provide() },
             });
             quote! { #ident(#(#items),*) }
@@ -160,8 +151,9 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                         }
                     }
                 }
-                None if is_option_type(ty) => quote! { #k: None },
-                None if is_late_type(ty) => quote! { #k: nject::Late::new() },
+                None if is_type_named(ty, "Option") => quote! { #k: None },
+                None if is_type_named(ty, "Late") => quote! { #k: nject::Late::new() },
+                None if is_type_named(ty, "Lazy") => quote! { #k: nject::Lazy::new() },
                 None => quote! { #k: provider.provide() },
             });
             quote! { #ident { #(#items),* } }
@@ -181,7 +173,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
                     prov_types.push(quote! {#attr_type});
                 }
             }
-            None if !is_option_type(t) && !is_late_type(t) => {
+            None if !is_type_named(t, "Option") && !is_type_named(t, "Late") && !is_type_named(t, "Lazy") => {
                 prov_types.push(quote! {#t});
             }
             None => {}
