@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Assisted injection example.
 //!
 //! Demonstrates using `#[assisted]` to mark fields that are provided by the

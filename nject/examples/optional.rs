@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Example demonstrating optional dependency injection with nject.
 //!
 //! `Option<T>` fields without `#[inject]` default to `None`.

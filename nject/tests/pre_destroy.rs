@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use nject::{injectable, provider};
 use std::sync::atomic::{AtomicBool, Ordering};
 

@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 //! Example demonstrating async dependency injection with nject.
 //!
 //! Run with: `cargo run --example async_init -p nject`
