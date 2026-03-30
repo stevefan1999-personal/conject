@@ -1,7 +1,8 @@
 pub mod models;
 pub mod repository;
 use crate::attrs::{ExportFieldInput, ExportStructInput, ParsedField};
-use crate::core::{DeriveInputExt, Generics, collection::group_by};
+use crate::core::{DeriveInputExt, Generics};
+use itertools::Itertools;
 use darling::Error as DarlingError;
 use proc_macro::TokenStream;
 use quote::quote;
@@ -56,7 +57,7 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
             Some((i, attrs))
         })
         .collect();
-    let struct_exports_by_type = group_by(struct_exports.iter(), |k| match k {
+    let struct_exports_by_type = struct_exports.iter().into_group_map_by(|k| match k {
         ExportStructInput::TypeExpr(t, _) => quote! { #t }.to_string(),
         ExportStructInput::TypeExprFact(t, _, _) => quote! { #t }.to_string(),
     });

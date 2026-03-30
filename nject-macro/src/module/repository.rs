@@ -1,10 +1,5 @@
 use super::models::{Module, ModuleKey};
-use crate::core::{
-    cache_path,
-    encoding::{base32, base64},
-    hash::fnv,
-    retry,
-};
+use crate::core::{cache_path, hash::fnv, retry};
 use std::{
     collections::HashMap,
     io::{BufRead, Write},
@@ -120,21 +115,13 @@ pub(crate) fn ensure(module: Module) {
 }
 
 fn to_file_name(data: &[u8]) -> String {
-    let encoded = if data.len() > 40 {
+    if data.len() > 40 {
         let hash = fnv(data);
-        let prefix = &data[..32];
         let mut combined = Vec::with_capacity(48);
-        combined.extend_from_slice(prefix);
+        combined.extend_from_slice(&data[..32]);
         combined.extend_from_slice(&hash);
-        let mut encoded_data = base64::encode(&combined);
-        for byte in &mut encoded_data {
-            if *byte == b'/' {
-                *byte = b'_';
-            }
-        }
-        encoded_data
+        data_encoding::BASE64.encode(&combined).replace('/', "_")
     } else {
-        base32::encode(data)
-    };
-    unsafe { String::from_utf8_unchecked(encoded) }
+        data_encoding::BASE32_NOPAD.encode(data)
+    }
 }

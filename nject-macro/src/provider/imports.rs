@@ -1,4 +1,4 @@
-use crate::core::collection::group_by;
+use itertools::Itertools;
 use quote::quote;
 use syn::{GenericParam, Ident, Type};
 
@@ -40,10 +40,10 @@ pub(super) fn gen_imports_for_import_attr(
             .map(|(m, t)| (m.to_owned(), t.to_owned(), field_key))
             .collect::<Vec<_>>()
     });
-    let exported_types = group_by(exported_types, |(_, t, _)| quote! { #t }.to_string());
+    let exported_types = Itertools::into_group_map_by(exported_types, |(_, t, _)| quote! { #t }.to_string());
     let import_iter_outputs = exported_types.values().map(|types| {
         let (_, ty, _) = types.first().unwrap();
-        let types_by_module = group_by(types.iter().enumerate(), |(_, (m, _, _))| {
+        let types_by_module = Itertools::into_group_map_by(types.iter().enumerate(), |(_, (m, _, _))| {
             m.key().unwrap()
         });
         let iter_match_outputs = types_by_module.values().flat_map(|types_for_module| {

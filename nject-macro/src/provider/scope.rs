@@ -60,7 +60,7 @@ pub(super) fn gen_scope_output(
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    let grouped_fields = crate::core::collection::group_by(scope_fields.iter(), |k| {
+    let grouped_fields = itertools::Itertools::into_group_map_by(scope_fields.iter(), |k| {
         k.ident.as_ref().map(|i| i.to_string())
     });
     let scope_outputs = grouped_fields.iter().map(|(scope_name, scope_fields)| {
