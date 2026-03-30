@@ -4,13 +4,15 @@ use syn::{
     parse::{Parse, ParseStream},
 };
 
-/// Parsed representation of struct-level `#[provide(Type, expr)]` or `#[provide(Type, |dep: T| expr)]`.
-pub enum ProvideStructInput {
+/// Parsed representation of struct-level `#[provide(Type, expr)]` / `#[export(Type, expr)]`
+/// or `#[provide(Type, |dep: T| expr)]` / `#[export(Type, |dep: T| expr)]`.
+#[derive(Clone)]
+pub enum TypeFactoryInput {
     TypeExpr(Type, Box<Expr>),
     TypeExprFact(Type, Vec<PatType>, Box<Expr>),
 }
 
-impl Parse for ProvideStructInput {
+impl Parse for TypeFactoryInput {
     fn parse(input: ParseStream) -> syn::Result<Self> {
         let parsed_type = input.parse()?;
         input.parse::<Token![,]>()?;
@@ -23,5 +25,11 @@ impl Parse for ProvideStructInput {
     }
 }
 
+pub type ProvideStructInput = TypeFactoryInput;
+pub type ExportStructInput = TypeFactoryInput;
+
 /// Field-level `#[provide]` / `#[provide(Type)]` / `#[provide(Type, |var| expr)]`.
 pub type ProvideFieldInput = FieldFactoryExpr;
+
+/// Field-level `#[export]` / `#[export(Type)]` / `#[export(Type, |var| expr)]`.
+pub type ExportFieldInput = FieldFactoryExpr;

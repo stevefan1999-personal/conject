@@ -4,30 +4,20 @@ mod provides;
 mod scope;
 
 use crate::attrs::{ParsedField, ProviderAttrs};
-use crate::core::DeriveInput;
+use crate::core::{DeriveInputExt, Generics};
 use quote::quote;
 
 pub(crate) fn handle_provider(
     item: proc_macro::TokenStream,
 ) -> syn::Result<proc_macro::TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let input = syn::parse::<syn::DeriveInput>(item)?;
     let ident = &input.ident;
     let fields = input.fields().iter().collect::<Vec<_>>();
-    let generic_keys = input.generic_keys();
-    let generic_params = input.generic_params();
-    let where_predicates = match &input.generics.where_clause {
-        Some(w) => {
-            let predicates = &w.predicates;
-            quote! { #predicates }
-        }
-        None => quote! {},
-    };
+    let Generics { params: generic_params, keys: generic_keys, where_predicates, .. } = Generics::from_input(&input);
 
-    // Use centralized field parsing
     let parsed_fields = ParsedField::from_fields(input.fields().iter())
         .map_err(syn::Error::from)?;
 
-    // Derive indexes from parsed fields instead of manual attribute scanning
     let import_attr_indexes: Vec<usize> = parsed_fields
         .iter()
         .enumerate()
@@ -41,7 +31,6 @@ pub(crate) fn handle_provider(
             if !pf.has_provide_or_singleton() {
                 return None;
             }
-            // Still need the original syn::Attribute references for downstream parsing
             let attrs = fields[i]
                 .attrs
                 .iter()
@@ -51,7 +40,6 @@ pub(crate) fn handle_provider(
         })
         .collect();
 
-    // Use centralized struct-level attribute parsing
     let provider_attrs = ProviderAttrs::from_attrs(&input.attrs);
     let provide_input_attr: Vec<&syn::Attribute> = provider_attrs.provide_attrs.iter().collect();
     let decorate_input_attr: Vec<&syn::Attribute> = provider_attrs.decorate_attrs.iter().collect();
@@ -138,22 +126,14 @@ pub(crate) fn handle_provider(
             {
                 <Self as nject::Provider<'prov, Njecty>>::provide(self)
             }
-        }
 
-        impl<#(#generic_params),*> #ident<#(#generic_keys),*>
-        where #where_predicates
-        {
             #[inline]
             pub fn provide_async<'prov, Njecty>(&'prov self) -> impl core::future::Future<Output = Njecty>
             where Self: nject::AsyncProvider<'prov, Njecty>
             {
                 <Self as nject::AsyncProvider<'prov, Njecty>>::provide(self)
             }
-        }
 
-        impl<#(#generic_params),*> #ident<#(#generic_keys),*>
-        where #where_predicates
-        {
             #[inline]
             pub fn iter<'prov, Value>(&'prov self) -> impl Iterator<Item = Value> + use<'prov #(,#generic_keys)*, Value>
             where Self: nject::Iterable<'prov, Value>

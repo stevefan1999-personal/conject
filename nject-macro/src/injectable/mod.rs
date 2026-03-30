@@ -3,24 +3,22 @@ pub(crate) mod creation;
 mod provider_bounds;
 
 use crate::attrs::{InjectableAttrs, ParsedField};
-use crate::core::DeriveInput;
+use crate::core::{DeriveInputExt, Generics};
 use proc_macro::TokenStream;
 use quote::quote;
 
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
-    let mut input = syn::parse::<DeriveInput>(item)?;
+    let mut input = syn::parse::<syn::DeriveInput>(item)?;
 
-    // Use centralized struct-level attribute parsing via darling error accumulation
-    let injectable_attrs: InjectableAttrs = InjectableAttrs::from_attrs(&input.0.attrs)
+    let injectable_attrs: InjectableAttrs = InjectableAttrs::from_attrs(&input.attrs)
         .map_err(syn::Error::from)?;
-    InjectableAttrs::strip_from(&mut input.0.attrs);
+    InjectableAttrs::strip_from(&mut input.attrs);
 
     let ident = &input.ident;
     let fields = input.fields();
     let types = input.field_types();
     let keys = input.field_idents();
 
-    // Use centralized field parsing with darling error accumulation
     let parsed_fields = ParsedField::from_fields(fields.iter())
         .map_err(syn::Error::from)?;
 
@@ -29,38 +27,11 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let assisted_flags: Vec<bool> = parsed_fields.iter().map(|pf| pf.assisted).collect();
     let has_assisted = assisted_flags.iter().any(|&x| x);
 
-    // Validation (inject + assisted) is already done inside ParsedField::from_field
-
-    let generic_params = input.generic_params();
-    let generic_keys = input.generic_keys();
-    let lifetime_keys = input.lifetime_keys();
-    let prov_lifetimes = if lifetime_keys.is_empty() {
-        quote! {}
-    } else {
-        quote! { 'prov: #(#lifetime_keys)+*, }
-    };
-    let where_predicates = match &input.generics.where_clause {
-        Some(w) => {
-            let predicates = &w.predicates;
-            quote! { #predicates }
-        }
-        None => quote! {},
-    };
+    let g = Generics::from_input(&input);
 
     if has_assisted {
         return assisted::handle_assisted_injectable(
-            &input,
-            ident,
-            fields,
-            &types,
-            &keys,
-            &attributes,
-            &assisted_flags,
-            &generic_params,
-            &generic_keys,
-            &lifetime_keys,
-            &prov_lifetimes,
-            &where_predicates,
+            &input, ident, fields, &types, &keys, &attributes, &assisted_flags, &g,
         );
     }
 
@@ -72,6 +43,7 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let (prov_types, provider_bounds) =
         provider_bounds::build_provider_bounds(&types, &attributes);
+    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = &g;
     let pre_destroy_output = match &injectable_attrs.pre_destroy {
         Some(expr) => quote! {
             impl<#(#generic_params),*> Drop for #ident<#(#generic_keys),*>

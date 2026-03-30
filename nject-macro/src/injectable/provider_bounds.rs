@@ -3,10 +3,6 @@ use crate::injectable::creation::is_type_named;
 use quote::quote;
 use syn::Type;
 
-/// Build the list of provider-required types and the corresponding where-clause fragment.
-///
-/// Returns `(prov_types, provider_bounds)` where `prov_types` is the deduplicated list
-/// of types the provider must supply, and `provider_bounds` is the `where` fragment.
 pub(crate) fn build_provider_bounds(
     types: &[&Type],
     attributes: &[Option<InjectExpr>],

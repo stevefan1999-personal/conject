@@ -10,7 +10,6 @@ pub(crate) fn gen_providers_for_provide_attr_on_struct(
     provide_input_attr: &[&syn::Attribute],
     decorate_input_attr: &[&syn::Attribute],
 ) -> Vec<proc_macro2::TokenStream> {
-    // Parse all decorators and group them by type token string for lookup
     let parsed_decorators: Vec<DecorateStructInput> = decorate_input_attr
         .iter()
         .map(|a| a.parse_args::<DecorateStructInput>().unwrap())
@@ -33,7 +32,6 @@ pub(crate) fn gen_providers_for_provide_attr_on_struct(
             let type_key = quote! { #ty }.to_string();
             let decorators = decor_by_type.get(&type_key);
             let body = if let Some(decorators) = decorators {
-                // Generate chained decoration: base value -> decorator 1 -> decorator 2 -> ...
                 let decorator_steps = decorators.iter().map(|d| {
                     let var = &d.var;
                     let expr = &d.expr;

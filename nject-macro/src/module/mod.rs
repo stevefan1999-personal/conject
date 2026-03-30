@@ -1,26 +1,27 @@
 pub mod models;
 pub mod repository;
 use crate::attrs::{ExportFieldInput, ExportStructInput, ParsedField};
-use crate::core::{DeriveInput, collection::group_by, error};
+use crate::core::{DeriveInputExt, Generics, collection::group_by};
 use darling::Error as DarlingError;
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{Path, Type};
 
 pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let input = syn::parse::<syn::DeriveInput>(item)?;
     let module_pub_path = if attr.is_empty() {
         None
     } else {
         let path = syn::parse::<Path>(attr).map_err(|e| {
-            error::combine(syn::Error::new(e.span(), "Invalid public module path"), e)
+            let mut err = syn::Error::new(e.span(), "Invalid public module path");
+            err.combine(e);
+            err
         })?;
         Some(path)
     };
     let ident = &input.ident;
     let fields = input.fields().iter().collect::<Vec<_>>();
 
-    // Use darling error accumulation for struct-level export parsing
     let struct_exports = {
         let mut errors = DarlingError::accumulator();
         let mut exports = Vec::new();
@@ -37,7 +38,6 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
         exports
     };
 
-    // Use centralized field parsing to detect export attributes
     let parsed_fields = ParsedField::from_fields(input.fields().iter())
         .map_err(syn::Error::from)?;
 
@@ -48,7 +48,6 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
             if !pf.has_export() {
                 return None;
             }
-            // Still need original syn::Attribute references for downstream parsing
             let attrs = fields[i]
                 .attrs
                 .iter()
@@ -74,22 +73,7 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
         struct_type_exports.as_slice(),
     ));
     repository::ensure(module);
-    let generic_keys = input.generic_keys();
-    let lifetime_keys = input.lifetime_keys();
-    let prov_lifetimes = if lifetime_keys.is_empty() {
-        quote! {}
-    } else {
-        quote! { 'prov: #(#lifetime_keys)+*, }
-    };
-
-    let where_predicates = match &input.generics.where_clause {
-        Some(w) => {
-            let predicates = &w.predicates;
-            quote! { #predicates }
-        }
-        None => quote! {},
-    };
-    let generic_params = input.generic_params();
+    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
     let struct_export_outputs = struct_exports_by_type
         .values()
         .map(|exports| {

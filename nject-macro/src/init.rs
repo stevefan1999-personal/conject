@@ -6,16 +6,6 @@ use syn::{
     punctuated::Punctuated,
 };
 
-/// Two forms:
-/// - Expression: `init!(M1, M2, M3)` -> block expression (owned modules only)
-/// - Block:
-///   ```ignore
-///   init! {
-///       let [mut] name [: Type] = M1, M2;
-///       let [mut] name [: Type] = M3;
-///   }
-///   ```
-///   For statements in enclosing scope (supports borrowing, multiple declarations)
 enum InitInput {
     Expr { modules: Vec<Type> },
     Block { declarations: Vec<LetDecl> },
@@ -108,8 +98,6 @@ fn collect_lifetimes_from_type(ty: &Type, lifetimes: &mut Vec<Lifetime>) {
     }
 }
 
-/// Generate the intermediate struct definitions and let-bindings for a chain of N modules.
-/// `name_prefix` is used to create unique identifiers when multiple `init!` calls coexist.
 fn gen_chain(
     modules: &[Type],
     name_prefix: &str,
@@ -183,7 +171,8 @@ pub(crate) fn handle_init(item: TokenStream) -> syn::Result<TokenStream> {
                     "init! requires at least one module type",
                 ));
             }
-            handle_init_expr(&modules)
+            let (struct_defs, let_bindings, last_var) = gen_chain(&modules, "expr");
+            Ok(quote! { { #(#struct_defs)* #(#let_bindings)* #last_var.provide() } }.into())
         }
         InitInput::Block { declarations } => {
             if declarations.is_empty() {
@@ -192,76 +181,24 @@ pub(crate) fn handle_init(item: TokenStream) -> syn::Result<TokenStream> {
                     "init! block requires at least one let declaration",
                 ));
             }
-            handle_init_block(&declarations)
-        }
-    }
-}
-
-/// Expression form: `init!(M1, M2)` -> block expression
-fn handle_init_expr(modules: &[Type]) -> syn::Result<TokenStream> {
-    if modules.len() == 1 {
-        let output = quote! {
-            {
-                #[nject::provider]
-                struct __NjectInitProvider;
-                __NjectInitProvider.provide()
+            let mut all_tokens = Vec::new();
+            for decl in &declarations {
+                if decl.modules.is_empty() {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "each let declaration requires at least one module type",
+                    ));
+                }
+                let mutability = if decl.is_mut { quote! { mut } } else { quote! {} };
+                let ty_annotation = decl.ty.as_ref().map_or_else(|| quote! {}, |t| quote! { : #t });
+                let ident = &decl.ident;
+                let (struct_defs, let_bindings, last_var) = gen_chain(&decl.modules, &ident.to_string());
+                all_tokens.push(quote! {
+                    #(#struct_defs)* #(#let_bindings)*
+                    let #mutability #ident #ty_annotation = #last_var.provide();
+                });
             }
-        };
-        return Ok(output.into());
-    }
-
-    let (struct_defs, let_bindings, last_var) = gen_chain(modules, "expr");
-
-    let output = quote! {
-        {
-            #(#struct_defs)*
-            #(#let_bindings)*
-            #last_var.provide()
-        }
-    };
-
-    Ok(output.into())
-}
-
-/// Block form: `init! { let name: Type = M1, M2; ... }` -> statements in enclosing scope
-fn handle_init_block(declarations: &[LetDecl]) -> syn::Result<TokenStream> {
-    let mut all_tokens = Vec::new();
-
-    for decl in declarations {
-        if decl.modules.is_empty() {
-            return Err(syn::Error::new(
-                proc_macro2::Span::call_site(),
-                "each let declaration requires at least one module type",
-            ));
-        }
-
-        let mutability = if decl.is_mut { quote! { mut } } else { quote! {} };
-        let ty_annotation = decl.ty.as_ref().map_or_else(
-            || quote! {},
-            |t| quote! { : #t },
-        );
-
-        let ident = &decl.ident;
-        let name_prefix = ident.to_string();
-
-        if decl.modules.len() == 1 {
-            let init_ident = format_ident!("__NjectInit_{}", name_prefix);
-            all_tokens.push(quote! {
-                #[nject::provider]
-                #[allow(non_camel_case_types)]
-                struct #init_ident;
-                let #mutability #ident #ty_annotation = #init_ident.provide();
-            });
-        } else {
-            let (struct_defs, let_bindings, last_var) = gen_chain(&decl.modules, &name_prefix);
-            all_tokens.push(quote! {
-                #(#struct_defs)*
-                #(#let_bindings)*
-                let #mutability #ident #ty_annotation = #last_var.provide();
-            });
+            Ok(quote! { #(#all_tokens)* }.into())
         }
     }
-
-    let output = quote! { #(#all_tokens)* };
-    Ok(output.into())
 }

@@ -1,4 +1,3 @@
-use crate::core::error;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
 use syn::{
@@ -55,7 +54,9 @@ pub(super) fn gen_scope_output(
         .iter()
         .map(|a| {
             a.parse_args_with(parse_scope_field).map_err(|e| {
-                error::combine(syn::Error::new(a.span(), "Unable to parse scope field."), e)
+                let mut err = syn::Error::new(a.span(), "Unable to parse scope field.");
+                err.combine(e);
+                err
             })
         })
         .collect::<syn::Result<Vec<_>>>()?;
@@ -160,7 +161,6 @@ pub(super) fn gen_scope_output(
     Ok(quote! { #(#scope_outputs)* })
 }
 
-/// Converts a snake_case string to PascalCase.
 fn snake_to_pascal(snake: &str) -> String {
     snake
         .split('_')

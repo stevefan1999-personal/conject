@@ -1,23 +1,18 @@
 use crate::attrs::{ParsedField, SimpleInjectExpr};
-use crate::core::DeriveInput;
+use crate::core::{DeriveInputExt, Generics};
 use proc_macro::TokenStream;
 use quote::quote;
 
 pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let input = syn::parse::<syn::DeriveInput>(item)?;
     let ident = &input.ident;
     let fields = input.fields();
     let types = input.field_types();
     let keys = input.field_idents();
 
-    // Use centralized field parsing for attribute detection, then extract
-    // SimpleInjectExpr (async_injectable uses SimpleInjectExpr, not InjectExpr)
     let parsed_fields = ParsedField::from_fields(fields.iter())
         .map_err(syn::Error::from)?;
 
-    // For async_injectable, we need SimpleInjectExpr rather than InjectExpr.
-    // Re-parse inject attributes as SimpleInjectExpr from the original fields
-    // but leverage ParsedField to know which fields have #[inject].
     let attributes: Vec<Option<SimpleInjectExpr>> = fields
         .iter()
         .zip(parsed_fields.iter())
@@ -29,21 +24,7 @@ pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStr
             attr.parse_args::<SimpleInjectExpr>().map(Some)
         })
         .collect::<syn::Result<Vec<_>>>()?;
-    let generic_params = input.generic_params();
-    let generic_keys = input.generic_keys();
-    let lifetime_keys = input.lifetime_keys();
-    let prov_lifetimes = if lifetime_keys.is_empty() {
-        quote! {}
-    } else {
-        quote! { 'prov: #(#lifetime_keys)+*, }
-    };
-    let where_predicates = match &input.generics.where_clause {
-        Some(w) => {
-            let predicates = &w.predicates;
-            quote! { #predicates }
-        }
-        None => quote! {},
-    };
+    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
     let creation_output = if keys.is_empty() && !types.is_empty() {
         // Tuple struct (unnamed fields)
         let items = types.iter().zip(&attributes).map(|(t, a)| match a {

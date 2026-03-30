@@ -1,31 +1,18 @@
 use crate::attrs::SimpleInjectExpr;
-use crate::core::{DeriveInput, error};
+use crate::core::Generics;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::Error;
 
 pub(crate) fn handle_inject(item: TokenStream, attr: TokenStream) -> syn::Result<TokenStream> {
-    let input = syn::parse::<DeriveInput>(item)?;
+    let input = syn::parse::<syn::DeriveInput>(item)?;
     let attributes: SimpleInjectExpr = syn::parse(attr).map_err(|e| {
-        error::combine(Error::new(e.span(), "Unable to parse inject attribute."), e)
+        let mut err = syn::Error::new(e.span(), "Unable to parse inject attribute.");
+        err.combine(e);
+        err
     })?;
     let ident = &input.ident;
-    let generic_params = input.generic_params();
-    let generic_keys = input.generic_keys();
-    let lifetime_keys = input.lifetime_keys();
-    let prov_lifetimes = if lifetime_keys.is_empty() {
-        quote! {}
-    } else {
-        quote! { 'prov: #(#lifetime_keys)+*, }
-    };
+    let Generics { params: generic_params, keys: generic_keys, prov_lifetimes, where_predicates } = Generics::from_input(&input);
     let prov_types = attributes.1.iter().map(|x| &x.ty).collect::<Vec<_>>();
-    let where_predicates = match &input.generics.where_clause {
-        Some(w) => {
-            let predicates = &w.predicates;
-            quote! { #predicates }
-        }
-        None => quote! {},
-    };
     let prov_input = attributes
         .1
         .iter()

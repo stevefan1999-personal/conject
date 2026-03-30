@@ -102,12 +102,10 @@ impl From<(&Ident, Option<&Path>, &[&Type])> for Module {
     }
 }
 
-/// Name of the current crate.
 fn current_crate_name() -> Option<String> {
     std::env::var("CARGO_CRATE_NAME").ok()
 }
 
-/// Name of the current binary. If it's a bench or test, the name will be `test_bench`
 fn current_bin_name() -> Option<String> {
     std::env::var("CARGO_BIN_NAME").ok().or_else(|| {
         std::env::var("CARGO_TARGET_TMPDIR")

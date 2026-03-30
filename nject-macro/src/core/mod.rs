@@ -1,61 +1,46 @@
 pub mod collection;
 pub mod encoding;
-pub mod error;
 pub mod hash;
 use proc_macro2::TokenStream;
 use quote::{ToTokens, quote};
 use std::path::PathBuf;
-use std::{ops::Deref, str::FromStr};
+use std::str::FromStr;
 use syn::{
-    AngleBracketedGenericArguments, Expr, ExprClosure, Fields, GenericArgument, GenericParam,
+    Expr, ExprClosure, Fields, GenericArgument, GenericParam,
     Ident, Pat, PatType, Path, PathSegment, Token, Type,
     parse::{Parse, ParseStream},
     spanned::Spanned,
 };
 
-pub struct DeriveInput(pub(crate) syn::DeriveInput);
-
-impl Deref for DeriveInput {
-    type Target = syn::DeriveInput;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
+pub(crate) trait DeriveInputExt {
+    fn fields(&self) -> &Fields;
+    fn field_types(&self) -> Vec<&Type>;
+    fn field_idents(&self) -> Vec<&Ident>;
+    fn generic_params(&self) -> Vec<&GenericParam>;
+    fn generic_keys(&self) -> Vec<TokenStream>;
+    fn lifetime_keys(&self) -> Vec<TokenStream>;
 }
 
-impl Parse for DeriveInput {
-    fn parse(input: ParseStream) -> syn::Result<Self> {
-        let input = input.parse()?;
-        Ok(Self(input))
-    }
-}
-
-impl ToTokens for DeriveInput {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        self.0.to_tokens(tokens)
-    }
-}
-
-impl DeriveInput {
-    pub fn fields(&self) -> &Fields {
+impl DeriveInputExt for syn::DeriveInput {
+    fn fields(&self) -> &Fields {
         match &self.data {
             syn::Data::Struct(d) => &d.fields,
             _ => panic!("Unsupported type. Macro should be used on a struct"),
         }
     }
-    pub fn field_types(&self) -> Vec<&Type> {
+    fn field_types(&self) -> Vec<&Type> {
         self.fields().iter().map(|f| &f.ty).collect::<Vec<_>>()
     }
-    pub fn field_idents(&self) -> Vec<&Ident> {
+    fn field_idents(&self) -> Vec<&Ident> {
         self.fields()
             .iter()
             .filter_map(|f| f.ident.as_ref())
             .collect::<Vec<_>>()
     }
-    pub fn generic_params(&self) -> Vec<&GenericParam> {
+    fn generic_params(&self) -> Vec<&GenericParam> {
         self.generics.params.iter().collect::<Vec<_>>()
     }
-    pub fn generic_keys(&self) -> Vec<TokenStream> {
+    fn generic_keys(&self) -> Vec<TokenStream> {
         self.generics
             .params
             .iter()
@@ -72,7 +57,7 @@ impl DeriveInput {
             })
             .collect::<Vec<_>>()
     }
-    pub fn lifetime_keys(&self) -> Vec<TokenStream> {
+    fn lifetime_keys(&self) -> Vec<TokenStream> {
         self.generics
             .params
             .iter()
@@ -84,6 +69,34 @@ impl DeriveInput {
                 }
             })
             .collect::<Vec<_>>()
+    }
+}
+
+pub(crate) struct Generics<'a> {
+    pub params: Vec<&'a GenericParam>,
+    pub keys: Vec<TokenStream>,
+    pub prov_lifetimes: TokenStream,
+    pub where_predicates: TokenStream,
+}
+
+impl<'a> Generics<'a> {
+    pub fn from_input(input: &'a syn::DeriveInput) -> Self {
+        let params = input.generic_params();
+        let keys = input.generic_keys();
+        let lifetime_keys = input.lifetime_keys();
+        let prov_lifetimes = if lifetime_keys.is_empty() {
+            quote! {}
+        } else {
+            quote! { 'prov: #(#lifetime_keys)+*, }
+        };
+        let where_predicates = match &input.generics.where_clause {
+            Some(w) => {
+                let predicates = &w.predicates;
+                quote! { #predicates }
+            }
+            None => quote! {},
+        };
+        Self { params, keys, prov_lifetimes, where_predicates }
     }
 }
 
@@ -158,31 +171,26 @@ pub fn extract_path_from_type(ty: &Type) -> &Path {
     }
 }
 
-/// Path to the cache directory.
 pub fn cache_path() -> PathBuf {
     let out_dir = env!("NJECT_OUT_DIR");
     std::path::PathBuf::from_str(out_dir).expect("Unable to construct NJECT_OUT_DIR")
 }
 
-/// Retry the `action` nth `times` with 100ms between each time.
 pub fn retry<T, E>(times: usize, action: impl Fn() -> Result<T, E>) -> Result<T, E> {
     let result = action();
-    if result.is_ok() || times < 1 {
-        result
-    } else {
+    if result.is_ok() || times < 1 { result }
+    else {
         std::thread::sleep(std::time::Duration::from_millis(100));
         retry(times - 1, action)
     }
 }
 
-/// Substitute an identity in path recursively.
 pub fn substitute_in_path(path: &mut Path, from: &str, to: &str) {
     for segment in path.segments.iter_mut() {
         substitute_in_path_segment(segment, from, to)
     }
 }
 
-/// Substitute an identity in generic arg recursively.
 pub fn substitute_in_type(ty: &mut Type, from: &str, to: &str) {
     match ty {
         Type::Path(p) => substitute_in_path(&mut p.path, from, to),
@@ -194,14 +202,10 @@ pub fn substitute_in_type(ty: &mut Type, from: &str, to: &str) {
                 }
             }
         }
-        _ => panic!(
-            "Unsupported type. Must be a Path, Reference or Trait: {}",
-            ty.to_token_stream()
-        ),
+        _ => panic!("Unsupported type: {}", ty.to_token_stream()),
     };
 }
 
-/// Substitute an identity in path segment recursively.
 fn substitute_in_path_segment(segment: &mut PathSegment, from: &str, to: &str) {
     if segment.ident == from {
         segment.ident = syn::Ident::new(to, segment.ident.span());
@@ -209,52 +213,31 @@ fn substitute_in_path_segment(segment: &mut PathSegment, from: &str, to: &str) {
     match &mut segment.arguments {
         syn::PathArguments::None => (),
         syn::PathArguments::AngleBracketed(b) => {
-            for arg in &mut b.args {
-                substitute_in_generic_argument(arg, from, to)
-            }
+            for arg in &mut b.args { substitute_in_generic_argument(arg, from, to) }
         }
         syn::PathArguments::Parenthesized(p) => {
-            for ty in &mut p.inputs {
-                substitute_in_type(ty, from, to)
-            }
+            for ty in &mut p.inputs { substitute_in_type(ty, from, to) }
         }
     };
 }
 
-/// Substitute an identity in generic args recursively.
-fn substitute_in_angle_bracketed_generic_arguments(
-    args: &mut AngleBracketedGenericArguments,
-    from: &str,
-    to: &str,
-) {
-    for arg in &mut args.args {
-        substitute_in_generic_argument(arg, from, to)
-    }
-}
-
-/// Substitute an identity in generic arg recursively.
 fn substitute_in_generic_argument(arg: &mut GenericArgument, from: &str, to: &str) {
     match arg {
         syn::GenericArgument::Type(ty) => substitute_in_type(ty, from, to),
-        syn::GenericArgument::Const(_) => (),
         syn::GenericArgument::AssocType(a) => {
             if let Some(args) = &mut a.generics {
-                substitute_in_angle_bracketed_generic_arguments(args, from, to)
+                for arg in &mut args.args { substitute_in_generic_argument(arg, from, to) }
             }
             substitute_in_type(&mut a.ty, from, to)
         }
-        syn::GenericArgument::AssocConst(_) => (),
         syn::GenericArgument::Constraint(c) => {
             if let Some(args) = &mut c.generics {
-                substitute_in_angle_bracketed_generic_arguments(args, from, to)
+                for arg in &mut args.args { substitute_in_generic_argument(arg, from, to) }
             }
             for bound in &mut c.bounds {
-                match bound {
-                    syn::TypeParamBound::Trait(t) => substitute_in_path(&mut t.path, from, to),
-                    syn::TypeParamBound::Lifetime(_) => (),
-                    syn::TypeParamBound::Verbatim(_) => (),
-                    _ => (),
-                };
+                if let syn::TypeParamBound::Trait(t) = bound {
+                    substitute_in_path(&mut t.path, from, to)
+                }
             }
         }
         _ => (),
