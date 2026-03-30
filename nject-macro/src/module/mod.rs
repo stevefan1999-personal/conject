@@ -1,10 +1,11 @@
 pub mod models;
 pub mod repository;
-use crate::attrs::{ExportFieldInput, ExportStructInput};
+use crate::attrs::{ExportFieldInput, ExportStructInput, ParsedField};
 use crate::core::{DeriveInput, collection::group_by, error};
+use darling::Error as DarlingError;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::{Path, Type, spanned::Spanned};
+use syn::{Path, Type};
 
 pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result<TokenStream> {
     let input = syn::parse::<DeriveInput>(item)?;
@@ -18,35 +19,44 @@ pub(crate) fn handle_module(attr: TokenStream, item: TokenStream) -> syn::Result
     };
     let ident = &input.ident;
     let fields = input.fields().iter().collect::<Vec<_>>();
-    let struct_exports = input
-        .attrs
-        .iter()
-        .filter(|a| a.path().is_ident("export"))
-        .map(|a| {
-            a.parse_args::<ExportStructInput>().map_err(|e| {
-                error::combine(
-                    syn::Error::new(a.span(), "Unable to parse struct export attribute."),
-                    e,
-                )
-            })
-        })
-        .collect::<syn::Result<Vec<_>>>()?;
-    let export_attr_indexes = fields
+
+    // Use darling error accumulation for struct-level export parsing
+    let struct_exports = {
+        let mut errors = DarlingError::accumulator();
+        let mut exports = Vec::new();
+        for attr in input.attrs.iter().filter(|a| a.path().is_ident("export")) {
+            match attr.parse_args::<ExportStructInput>() {
+                Ok(e) => exports.push(e),
+                Err(e) => errors.push(
+                    DarlingError::custom(format!("Unable to parse struct export attribute: {e}"))
+                        .with_span(attr),
+                ),
+            }
+        }
+        errors.finish().map_err(syn::Error::from)?;
+        exports
+    };
+
+    // Use centralized field parsing to detect export attributes
+    let parsed_fields = ParsedField::from_fields(input.fields().iter())
+        .map_err(syn::Error::from)?;
+
+    let export_attr_indexes: Vec<(usize, Vec<&syn::Attribute>)> = parsed_fields
         .iter()
         .enumerate()
-        .filter_map(|(i, f)| {
-            let attrs = f
+        .filter_map(|(i, pf)| {
+            if !pf.has_export() {
+                return None;
+            }
+            // Still need original syn::Attribute references for downstream parsing
+            let attrs = fields[i]
                 .attrs
                 .iter()
                 .filter(|a| a.path().is_ident("export"))
                 .collect::<Vec<_>>();
-            if attrs.is_empty() {
-                None
-            } else {
-                Some((i, attrs))
-            }
+            Some((i, attrs))
         })
-        .collect::<Vec<_>>();
+        .collect();
     let struct_exports_by_type = group_by(struct_exports.iter(), |k| match k {
         ExportStructInput::TypeExpr(t, _) => quote! { #t }.to_string(),
         ExportStructInput::TypeExprFact(t, _, _) => quote! { #t }.to_string(),

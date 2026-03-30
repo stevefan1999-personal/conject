@@ -10,6 +10,7 @@ use syn::{
 /// - `#[inject(expr)]` or `#[inject(|dep: T| expr)]` — direct value / factory
 /// - `#[inject(named(TagType))]` — named injection by tag type
 /// - `#[inject(named("key"))]` — named injection by string key (FNV-hashed)
+#[derive(Clone)]
 pub enum InjectExpr {
     /// A direct expression, optionally with factory inputs: `expr` or `|dep: T| expr`
     Value(Box<Expr>, Vec<PatType>),

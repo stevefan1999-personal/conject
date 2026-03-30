@@ -1,8 +1,7 @@
-use crate::attrs::SimpleInjectExpr;
-use crate::core::{DeriveInput, error};
+use crate::attrs::{ParsedField, SimpleInjectExpr};
+use crate::core::DeriveInput;
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::spanned::Spanned;
 
 pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let input = syn::parse::<DeriveInput>(item)?;
@@ -10,20 +9,24 @@ pub(crate) fn handle_async_injectable(item: TokenStream) -> syn::Result<TokenStr
     let fields = input.fields();
     let types = input.field_types();
     let keys = input.field_idents();
-    let attributes = fields
+
+    // Use centralized field parsing for attribute detection, then extract
+    // SimpleInjectExpr (async_injectable uses SimpleInjectExpr, not InjectExpr)
+    let parsed_fields = ParsedField::from_fields(fields.iter())
+        .map_err(syn::Error::from)?;
+
+    // For async_injectable, we need SimpleInjectExpr rather than InjectExpr.
+    // Re-parse inject attributes as SimpleInjectExpr from the original fields
+    // but leverage ParsedField to know which fields have #[inject].
+    let attributes: Vec<Option<SimpleInjectExpr>> = fields
         .iter()
-        .map(|f| {
-            let Some(attr) = f.attrs.iter().rfind(|a| a.path().is_ident("inject")) else {
+        .zip(parsed_fields.iter())
+        .map(|(f, pf)| {
+            if pf.inject.is_none() {
                 return Ok(None);
-            };
-            attr.parse_args::<SimpleInjectExpr>()
-                .map(Some)
-                .map_err(|e| {
-                    error::combine(
-                        syn::Error::new(attr.span(), "Unable to parse inject attribute"),
-                        e,
-                    )
-                })
+            }
+            let attr = f.attrs.iter().rfind(|a| a.path().is_ident("inject")).unwrap();
+            attr.parse_args::<SimpleInjectExpr>().map(Some)
         })
         .collect::<syn::Result<Vec<_>>>()?;
     let generic_params = input.generic_params();

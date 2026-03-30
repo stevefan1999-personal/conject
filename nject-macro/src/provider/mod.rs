@@ -3,6 +3,7 @@ mod imports;
 mod provides;
 mod scope;
 
+use crate::attrs::{ParsedField, ProviderAttrs};
 use crate::core::DeriveInput;
 use quote::quote;
 
@@ -21,47 +22,40 @@ pub(crate) fn handle_provider(
         }
         None => quote! {},
     };
-    let import_attr_indexes = fields
+
+    // Use centralized field parsing
+    let parsed_fields = ParsedField::from_fields(input.fields().iter())
+        .map_err(syn::Error::from)?;
+
+    // Derive indexes from parsed fields instead of manual attribute scanning
+    let import_attr_indexes: Vec<usize> = parsed_fields
         .iter()
         .enumerate()
-        .filter_map(|(i, f)| {
-            f.attrs
-                .iter()
-                .rfind(|a| a.path().is_ident("import"))
-                .map(|_| i)
-        })
-        .collect::<Vec<_>>();
-    let provide_attr_indexes = fields
+        .filter_map(|(i, pf)| if pf.import { Some(i) } else { None })
+        .collect();
+
+    let provide_attr_indexes: Vec<(usize, Vec<&syn::Attribute>)> = parsed_fields
         .iter()
         .enumerate()
-        .filter_map(|(i, f)| {
-            let attrs = f
+        .filter_map(|(i, pf)| {
+            if !pf.has_provide_or_singleton() {
+                return None;
+            }
+            // Still need the original syn::Attribute references for downstream parsing
+            let attrs = fields[i]
                 .attrs
                 .iter()
                 .filter(|a| a.path().is_ident("provide") || a.path().is_ident("singleton"))
                 .collect::<Vec<_>>();
-            if attrs.is_empty() {
-                None
-            } else {
-                Some((i, attrs))
-            }
+            Some((i, attrs))
         })
-        .collect::<Vec<_>>();
-    let provide_input_attr = input
-        .attrs
-        .iter()
-        .filter(|a| a.path().is_ident("provide"))
-        .collect::<Vec<_>>();
-    let decorate_input_attr = input
-        .attrs
-        .iter()
-        .filter(|a| a.path().is_ident("decorate"))
-        .collect::<Vec<_>>();
-    let scope_attr = input
-        .attrs
-        .iter()
-        .filter(|a| a.path().is_ident("scope"))
-        .collect::<Vec<_>>();
+        .collect();
+
+    // Use centralized struct-level attribute parsing
+    let provider_attrs = ProviderAttrs::from_attrs(&input.attrs);
+    let provide_input_attr: Vec<&syn::Attribute> = provider_attrs.provide_attrs.iter().collect();
+    let decorate_input_attr: Vec<&syn::Attribute> = provider_attrs.decorate_attrs.iter().collect();
+    let scope_attr: Vec<&syn::Attribute> = provider_attrs.scope_attrs.iter().collect();
 
     let fields_path_prefix = quote! {};
     let import_outputs = imports::gen_imports_for_import_attr(
