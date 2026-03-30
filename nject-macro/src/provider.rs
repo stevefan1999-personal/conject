@@ -59,7 +59,7 @@ pub(crate) fn handle_provider(
             let attrs = f
                 .attrs
                 .iter()
-                .filter(|a| a.path().is_ident("provide"))
+                .filter(|a| a.path().is_ident("provide") || a.path().is_ident("singleton"))
                 .collect::<Vec<_>>();
             if attrs.is_empty() {
                 None
