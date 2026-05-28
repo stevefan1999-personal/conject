@@ -91,7 +91,6 @@ pub(crate) fn handle_provider(
         scope_input_attr: &scope_attr,
     })?;
 
-    // Collect late_bind entries for resolve_bindings() generation
     let late_bind_calls: Vec<_> = parsed_fields
         .iter()
         .enumerate()

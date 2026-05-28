@@ -62,7 +62,6 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         );
     }
 
-    // Collect late_bind entries: (source_field_ident, target_expr)
     let late_binds: Vec<_> = parsed_fields
         .iter()
         .zip(keys.iter())
@@ -79,7 +78,6 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         None => creation_output,
     };
 
-    // If there are late_bind annotations, wrap the creation to run set() calls after construction
     let creation_output = if late_binds.is_empty() {
         creation_output
     } else {
@@ -115,9 +113,6 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     };
     let async_pre_destroy_output = match &injectable_attrs.async_pre_destroy {
         Some(expr) => {
-            // If the expression is a closure with an untyped first parameter,
-            // annotate it with `&mut Self` so the compiler can infer the async
-            // block's lifetime (without this, `|s| async move { s.field }` fails).
             let expr =
                 annotate_closure_first_param(expr, &syn::parse_quote!(#ident<#(#generic_keys),*>));
             quote! {

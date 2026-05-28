@@ -180,10 +180,7 @@ fn late_bind_should_auto_wire_circular_deps() {
     // One call resolves all late bindings — no manual .set() needed
     provider.resolve_bindings();
 
-    // The late_bind should have automatically wired bus.subscribers
     assert!(provider.bus.subscribers.is_set());
-
-    // Verify the circular reference works
     let registry_ref = provider.bus.subscribers.get().unwrap();
     assert!(Arc::ptr_eq(&registry_ref.bus, &provider.bus));
 }
@@ -225,11 +222,8 @@ fn late_bind_with_multiple_bindings() {
     let provider = AppProvider { a, b };
     provider.resolve_bindings();
 
-    // Both late_binds should be wired
     assert!(provider.a.b_ref.is_set());
     assert!(provider.b.a_ref.is_set());
-
-    // Verify the circular references
     assert!(Arc::ptr_eq(provider.a.b_ref.get().unwrap(), &provider.b));
     assert!(Arc::ptr_eq(provider.b.a_ref.get().unwrap(), &provider.a));
 }

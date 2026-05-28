@@ -3,8 +3,8 @@
 </div>
 <div align="center">
   <!-- Build status -->
-  <a href="https://github.com/nicolascotton/conject">
-    <img src="https://github.com/nicolascotton/conject/workflows/Rust/badge.svg" />
+  <a href="https://github.com/stevefan1999-personal/conject">
+    <img src="https://github.com/stevefan1999-personal/conject/workflows/Rust/badge.svg" />
   </a>
   <!-- Crates version -->
   <a href="https://crates.io/crates/conject">
@@ -32,7 +32,7 @@ Add the following to your `Cargo.toml`:
 conject = "0.4"
 ```
 ## Why `conject`?
-- **Zero cost**: Using this library is equivalent to manually injecting your dependencies as shown in the [benchmarks](https://github.com/nicolascotton/conject/tree/main/examples/benchmark).
+- **Zero cost**: Using this library is equivalent to manually injecting your dependencies as shown in the [benchmarks](https://github.com/stevefan1999-personal/conject/tree/main/examples/benchmark).
 - **Compile time only**: If configured incorrectly, `conject` will fail at compile time.
 
 ## Use cases
@@ -519,7 +519,7 @@ fn main() {
 ```
 
 ## Examples
-You can look into the [axum](https://github.com/nicolascotton/conject/tree/main/examples/axum)/[actix](https://github.com/nicolascotton/conject/tree/main/examples/actix) example for a Web API use case or into the [Leptos](https://github.com/nicolascotton/conject/tree/main/examples/leptos) example for a Web App.
+You can look into the [axum](https://github.com/stevefan1999-personal/conject/tree/main/examples/axum)/[actix](https://github.com/stevefan1999-personal/conject/tree/main/examples/actix) example for a Web API use case or into the [Leptos](https://github.com/stevefan1999-personal/conject/tree/main/examples/leptos) example for a Web App.
 ## Credits
 - [Syn](https://github.com/dtolnay/syn) - [MIT](https://github.com/dtolnay/syn/blob/master/LICENSE-MIT) or [Apache-2.0](https://github.com/dtolnay/syn/blob/master/LICENSE-APACHE)
 - [Quasi-Quoting](https://github.com/dtolnay/quote) - [MIT](https://github.com/dtolnay/quote/blob/master/LICENSE-MIT) or [Apache-2.0](https://github.com/dtolnay/quote/blob/master/LICENSE-APACHE)
