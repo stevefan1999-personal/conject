@@ -7,7 +7,7 @@ async fn async_pre_destroy_generates_destroy_method() {
     static CLEANED: AtomicBool = AtomicBool::new(false);
 
     #[injectable]
-    #[async_pre_destroy(|s| async move { CLEANED.store(true, Ordering::SeqCst); })]
+    #[async_pre_destroy(|_s| async move { CLEANED.store(true, Ordering::SeqCst); })]
     struct AsyncResource(#[inject(42)] i32);
 
     #[provider]

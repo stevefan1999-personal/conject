@@ -7,6 +7,27 @@ use crate::core::{DeriveInputExt, Generics};
 use proc_macro::TokenStream;
 use quote::quote;
 
+/// If `expr` is a closure whose first parameter is an untyped `Pat::Ident`,
+/// rewrite it to `Pat::Type` with `&mut #self_ty` so the compiler can infer
+/// async-block lifetimes correctly.
+fn annotate_closure_first_param(expr: &syn::Expr, self_ty: &syn::Type) -> syn::Expr {
+    let syn::Expr::Closure(closure) = expr else {
+        return expr.clone();
+    };
+    let mut closure = closure.clone();
+    if let Some(first) = closure.inputs.first_mut() {
+        if let syn::Pat::Ident(pat_ident) = first {
+            *first = syn::Pat::Type(syn::PatType {
+                attrs: vec![],
+                pat: Box::new(syn::Pat::Ident(pat_ident.clone())),
+                colon_token: Default::default(),
+                ty: Box::new(syn::parse_quote!(&mut #self_ty)),
+            });
+        }
+    }
+    syn::Expr::Closure(closure)
+}
+
 pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
     let mut input = syn::parse::<syn::DeriveInput>(item)?;
 
@@ -66,16 +87,23 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         None => quote! {},
     };
     let async_pre_destroy_output = match &injectable_attrs.async_pre_destroy {
-        Some(expr) => quote! {
-            impl<#(#generic_params),*> #ident<#(#generic_keys),*>
-            where #where_predicates
-            {
-                /// Async cleanup. Call before dropping.
-                pub async fn destroy(&mut self) {
-                    (#expr)(self).await;
+        Some(expr) => {
+            // If the expression is a closure with an untyped first parameter,
+            // annotate it with `&mut Self` so the compiler can infer the async
+            // block's lifetime (without this, `|s| async move { s.field }` fails).
+            let expr =
+                annotate_closure_first_param(expr, &syn::parse_quote!(#ident<#(#generic_keys),*>));
+            quote! {
+                impl<#(#generic_params),*> #ident<#(#generic_keys),*>
+                where #where_predicates
+                {
+                    /// Async cleanup. Call before dropping.
+                    pub async fn destroy(&mut self) {
+                        (#expr)(self).await;
+                    }
                 }
             }
-        },
+        }
         None => quote! {},
     };
     let output = quote! {
