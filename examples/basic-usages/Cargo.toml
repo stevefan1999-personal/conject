@@ -9,3 +9,4 @@ conject = { path = "../../conject", features = ["env"] }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+typed-builder = "0.20"
