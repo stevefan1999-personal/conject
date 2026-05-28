@@ -69,7 +69,7 @@ pub(crate) fn field_init_expr(ty: &Type, attr: &Option<InjectExpr>) -> proc_macr
             None => quote! { std::env::var(#key).expect(&format!("Missing env var: {}", #key)) },
         },
         None if is_type_named(ty, "Option") => quote! { None },
-        None if is_type_named(ty, "Late") => quote! { ::conject::Late::new() },
+        None if is_type_named(ty, "Late") => quote! { ::conject::Lazy::new() },
         None if is_type_named(ty, "Lazy") => quote! { ::conject::Lazy::new() },
         None => quote! { provider.provide() },
     }

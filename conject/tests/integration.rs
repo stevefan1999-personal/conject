@@ -1,7 +1,9 @@
 //! Integration tests combining multiple conject features together.
 #![allow(dead_code)]
 
-use conject::{Factory, Late, Lazy, Named, create, init, inject, injectable, key, module, provider};
+use conject::{
+    Factory, Late, Lazy, Named, create, init, inject, injectable, key, module, provider,
+};
 use std::sync::Arc;
 
 // -- Realistic app modules -----------------------------------------------
@@ -397,15 +399,22 @@ fn mixed_named_types_and_string_keys() {
 fn create_without_provider_struct() {
     #[inject(Self { url: "postgres://localhost".into() })]
     #[derive(Debug)]
-    struct Database { url: String }
+    struct Database {
+        url: String,
+    }
 
     #[inject(Self { ttl: 300 })]
     #[derive(Debug)]
-    struct Cache { ttl: u32 }
+    struct Cache {
+        ttl: u32,
+    }
 
     #[injectable]
     #[derive(Debug)]
-    struct UserService { db: Database, cache: Cache }
+    struct UserService {
+        db: Database,
+        cache: Cache,
+    }
 
     // No #[provider] struct needed!
     let svc: UserService = create();

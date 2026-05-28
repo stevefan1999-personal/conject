@@ -13,65 +13,6 @@ pub use conject_macro::{
     init, inject, injectable, key, module, provider,
 };
 
-/// A late-initialized dependency for breaking circular dependency cycles.
-///
-/// Use `Late<T>` when two types depend on each other. One side uses `Late<T>`
-/// which starts empty and is filled in after both types are constructed.
-///
-/// # Example
-/// ```rust
-/// use conject::Late;
-///
-/// let late = Late::<i32>::new();
-/// assert!(!late.is_set());
-/// late.set(42).unwrap();
-/// assert_eq!(late.get(), Some(&42));
-/// ```
-#[repr(transparent)]
-pub struct Late<T>(OnceCell<T>);
-
-impl<T> Late<T> {
-    /// Create a new empty `Late<T>`.
-    pub const fn new() -> Self {
-        Self(OnceCell::new())
-    }
-
-    /// Set the value. Returns `Err(value)` if already set.
-    #[inline(always)]
-    pub fn set(&self, value: T) -> Result<(), T> {
-        self.0.set(value)
-    }
-
-    /// Try to get a reference to the value. Returns `None` if not yet set.
-    #[inline(always)]
-    pub fn get(&self) -> Option<&T> {
-        self.0.get()
-    }
-
-    /// Check if the value has been set.
-    #[inline(always)]
-    pub fn is_set(&self) -> bool {
-        self.0.get().is_some()
-    }
-}
-
-impl<T> Default for Late<T> {
-    #[inline(always)]
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T: core::fmt::Debug> core::fmt::Debug for Late<T> {
-    #[inline(always)]
-    fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        match self.0.get() {
-            Some(v) => f.debug_tuple("Late").field(v).finish(),
-            None => f.write_str("Late(<not yet initialized>)"),
-        }
-    }
-}
-
 /// Provide a value for a specified type. Should be used with the `provide` macro for a better experience.
 /// ```rust
 /// use conject::{injectable, provider};
@@ -383,6 +324,12 @@ impl<T> Lazy<T> {
         self.0.get().is_some()
     }
 
+    /// Alias for [`is_initialized`](Lazy::is_initialized) — for `Late<T>` compatibility.
+    #[inline(always)]
+    pub fn is_set(&self) -> bool {
+        self.is_initialized()
+    }
+
     /// Sets the value if it hasn't been initialized yet.
     /// Returns `Ok(())` if the value was set, or `Err(value)` if it was already initialized.
     #[inline(always)]
@@ -442,6 +389,22 @@ impl<T: PartialEq> PartialEq for Lazy<T> {
 }
 
 impl<T: Eq> Eq for Lazy<T> {}
+
+/// A type alias for [`Lazy<T>`] used to break circular dependency cycles.
+///
+/// `Late<T>` is the same as `Lazy<T>` — use `set()` to fill in the value
+/// after both sides of a circular dependency are constructed, then `get()`
+/// to access it.
+///
+/// ```rust
+/// use conject::Late;
+///
+/// let late = Late::<i32>::new();
+/// assert!(!late.is_set());
+/// late.set(42).unwrap();
+/// assert_eq!(late.get(), Some(&42));
+/// ```
+pub type Late<T> = Lazy<T>;
 
 /// A factory that creates new instances of `T` each time [`create`](Factory::create) is called.
 ///

@@ -34,7 +34,7 @@ fn late_default_should_be_empty() {
 fn late_debug_empty_should_show_not_initialized() {
     let late = Late::<i32>::new();
     let debug = format!("{:?}", late);
-    assert_eq!(debug, "Late(<not yet initialized>)");
+    assert_eq!(debug, "Lazy(<not yet initialized>)");
 }
 
 #[test]
@@ -42,7 +42,7 @@ fn late_debug_set_should_show_value() {
     let late = Late::<i32>::new();
     late.set(42).unwrap();
     let debug = format!("{:?}", late);
-    assert_eq!(debug, "Late(42)");
+    assert_eq!(debug, "Lazy(42)");
 }
 
 #[test]
