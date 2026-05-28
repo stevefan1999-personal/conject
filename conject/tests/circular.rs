@@ -143,3 +143,93 @@ fn circular_deps_with_late_should_not_overflow() {
     assert!(Arc::ptr_eq(&one.dep.get().unwrap().dep, &one));
     assert!(one.dep.is_set());
 }
+
+#[test]
+fn late_bind_should_auto_wire_circular_deps() {
+    use conject::Lazy;
+
+    #[derive(Debug)]
+    struct EventBus {
+        subscribers: Lazy<Arc<HandlerRegistry>>,
+        event_count: i32,
+    }
+
+    #[derive(Debug)]
+    struct HandlerRegistry {
+        bus: Arc<EventBus>,
+    }
+
+    #[provider]
+    struct AppProvider {
+        #[singleton]
+        bus: Arc<EventBus>,
+        #[singleton]
+        #[late_bind(bus.subscribers)]
+        registry: Arc<HandlerRegistry>,
+    }
+
+    // Manual two-phase construction
+    let bus = Arc::new(EventBus {
+        subscribers: Lazy::new(),
+        event_count: 0,
+    });
+    let registry = Arc::new(HandlerRegistry {
+        bus: Arc::clone(&bus),
+    });
+    let provider = AppProvider { bus, registry };
+    // One call resolves all late bindings — no manual .set() needed
+    provider.resolve_bindings();
+
+    // The late_bind should have automatically wired bus.subscribers
+    assert!(provider.bus.subscribers.is_set());
+
+    // Verify the circular reference works
+    let registry_ref = provider.bus.subscribers.get().unwrap();
+    assert!(Arc::ptr_eq(&registry_ref.bus, &provider.bus));
+}
+
+#[test]
+fn late_bind_with_multiple_bindings() {
+    use conject::Lazy;
+
+    #[derive(Debug)]
+    struct ServiceA {
+        b_ref: Lazy<Arc<ServiceB>>,
+        id: i32,
+    }
+
+    #[derive(Debug)]
+    struct ServiceB {
+        a_ref: Lazy<Arc<ServiceA>>,
+        id: i32,
+    }
+
+    #[provider]
+    struct AppProvider {
+        #[singleton]
+        #[late_bind(b.a_ref)]
+        a: Arc<ServiceA>,
+        #[singleton]
+        #[late_bind(a.b_ref)]
+        b: Arc<ServiceB>,
+    }
+
+    let a = Arc::new(ServiceA {
+        b_ref: Lazy::new(),
+        id: 1,
+    });
+    let b = Arc::new(ServiceB {
+        a_ref: Lazy::new(),
+        id: 2,
+    });
+    let provider = AppProvider { a, b };
+    provider.resolve_bindings();
+
+    // Both late_binds should be wired
+    assert!(provider.a.b_ref.is_set());
+    assert!(provider.b.a_ref.is_set());
+
+    // Verify the circular references
+    assert!(Arc::ptr_eq(provider.a.b_ref.get().unwrap(), &provider.b));
+    assert!(Arc::ptr_eq(provider.b.a_ref.get().unwrap(), &provider.a));
+}

@@ -62,10 +62,37 @@ pub(crate) fn handle_injectable(item: TokenStream) -> syn::Result<TokenStream> {
         );
     }
 
+    // Collect late_bind entries: (source_field_ident, target_expr)
+    let late_binds: Vec<_> = parsed_fields
+        .iter()
+        .zip(keys.iter())
+        .filter_map(|(pf, key)| {
+            pf.late_bind
+                .as_ref()
+                .map(|target| ((*key).clone(), target.clone()))
+        })
+        .collect();
+
     let creation_output = creation::build_creation_output(ident, &types, &keys, &attributes);
     let creation_output = match &injectable_attrs.post_construct {
         Some(expr) => quote! { (#expr)(#creation_output) },
         None => creation_output,
+    };
+
+    // If there are late_bind annotations, wrap the creation to run set() calls after construction
+    let creation_output = if late_binds.is_empty() {
+        creation_output
+    } else {
+        let set_calls = late_binds.iter().map(|(source, target)| {
+            quote! { let _ = __conject_result.#target.set(__conject_result.#source.clone()); }
+        });
+        quote! {
+            {
+                let __conject_result = #creation_output;
+                #(#set_calls)*
+                __conject_result
+            }
+        }
     };
     let (prov_types, provider_bounds) = provider_bounds::build_provider_bounds(&types, &attributes);
     let Generics {

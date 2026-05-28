@@ -19,7 +19,14 @@ use provider::handle_provider;
 /// For internal purposes only. Should not be used.
 #[proc_macro_derive(
     InjectableHelperAttr,
-    attributes(inject, post_construct, pre_destroy, async_pre_destroy, assisted)
+    attributes(
+        inject,
+        post_construct,
+        pre_destroy,
+        async_pre_destroy,
+        assisted,
+        late_bind
+    )
 )]
 pub fn injectable_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()
@@ -34,7 +41,7 @@ pub fn module_helper_attr(_item: TokenStream) -> TokenStream {
 /// For internal purposes only. Should not be used.
 #[proc_macro_derive(
     ProviderHelperAttr,
-    attributes(import, provide, scope, singleton, decorate)
+    attributes(import, provide, scope, singleton, decorate, late_bind)
 )]
 pub fn provider_helper_attr(_item: TokenStream) -> TokenStream {
     TokenStream::new()

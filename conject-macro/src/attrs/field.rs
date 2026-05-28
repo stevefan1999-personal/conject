@@ -14,6 +14,8 @@ pub struct ParsedField {
     #[darling(skip)]
     pub singleton: bool,
     #[darling(skip)]
+    pub late_bind: Option<syn::Expr>,
+    #[darling(skip)]
     pub provide_attrs: Vec<syn::Attribute>,
     #[darling(skip)]
     pub export_attrs: Vec<syn::Attribute>,
@@ -44,6 +46,14 @@ impl ParsedField {
                 }
             } else if path.is_ident("export") {
                 parsed.export_attrs.push(attr.clone());
+            } else if path.is_ident("late_bind") {
+                match attr.parse_args::<syn::Expr>() {
+                    Ok(expr) => parsed.late_bind = Some(expr),
+                    Err(e) => errors.push(
+                        darling::Error::custom(format!("Unable to parse late_bind attribute: {e}"))
+                            .with_span(attr),
+                    ),
+                }
             }
         }
         if parsed.assisted && parsed.inject.is_some() {

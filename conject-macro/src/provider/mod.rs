@@ -91,6 +91,36 @@ pub(crate) fn handle_provider(
         scope_input_attr: &scope_attr,
     })?;
 
+    // Collect late_bind entries for resolve_bindings() generation
+    let late_bind_calls: Vec<_> = parsed_fields
+        .iter()
+        .enumerate()
+        .filter_map(|(i, pf)| {
+            pf.late_bind.as_ref().map(|target| {
+                let source = &fields[i].ident;
+                quote! { let _ = self.#target.set(self.#source.clone()); }
+            })
+        })
+        .collect();
+
+    let resolve_bindings_output = if late_bind_calls.is_empty() {
+        quote! {}
+    } else {
+        quote! {
+            impl<#(#generic_params),*> #ident<#(#generic_keys),*>
+            where #where_predicates
+            {
+                /// Resolve circular dependency bindings.
+                /// Called automatically when constructed via `Injectable::inject`.
+                /// Call manually after direct struct construction.
+                #[inline(always)]
+                pub fn resolve_bindings(&self) {
+                    #(#late_bind_calls)*
+                }
+            }
+        }
+    };
+
     let output = quote! {
         #[derive(::conject::ProviderHelperAttr)]
         #input
@@ -151,6 +181,8 @@ pub(crate) fn handle_provider(
         #(#input_provide_outputs)*
 
         #scope_output
+
+        #resolve_bindings_output
     };
     Ok(output.into())
 }
