@@ -1,3 +1,4 @@
+#![no_std]
 //! Example: Overriding provider bindings for testing.
 //!
 //! This demonstrates the recommended pattern for swapping implementations
@@ -6,6 +7,14 @@
 //! mock/stub implementations for the types you want to override.
 #![allow(dead_code)]
 
+// no_std + alloc compatible: uses String, Vec, and Box from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+#[macro_use]
+extern crate alloc;
+extern crate std;
+
+use alloc::{boxed::Box, string::String, vec::Vec};
 use conject::{injectable, module, provider};
 
 // ── Production domain types ────────────────────────────────────────
@@ -126,24 +135,21 @@ impl Database for MockDatabase {
 }
 
 fn main() {
-    println!("=== Production provider ===");
+    // Production provider: real Redis cache, real Postgres DB
     {
         #[provider]
         struct InitProvider;
         let provider = InitProvider.provide::<AppProvider>();
 
         let svc: UserService = provider.provide();
-        println!(
-            "Config: db_url={}, cache_ttl={}",
-            svc.config.db_url, svc.config.cache_ttl
-        );
-        println!("User lookup: {}", svc.repo.find_user(1));
+        assert_eq!(svc.config.db_url, "postgres://prod:5432/app");
+        assert_eq!(svc.config.cache_ttl, 300);
+        // RedisCache returns a cached value immediately for any key
+        assert_eq!(svc.repo.find_user(1), "redis:user:1:ttl=300");
     }
 
-    println!();
-    println!("=== Test provider: override both Database and Cache ===");
+    // Test provider: override both Database and Cache with mocks
     {
-        // Override everything with mocks, use test config
         #[provider]
         #[provide(AppConfig, AppConfig { db_url: "test://memory".into(), cache_ttl: 0 })]
         #[provide(Box<dyn Database>, Box::new(MockDatabase { response: "mock-user-alice".into() }))]
@@ -151,21 +157,13 @@ fn main() {
         struct TestProvider;
 
         let svc: UserService = TestProvider.provide();
-        println!(
-            "Config: db_url={}, cache_ttl={}",
-            svc.config.db_url, svc.config.cache_ttl
-        );
-        println!("User lookup: {}", svc.repo.find_user(1));
-
         assert_eq!(svc.config.db_url, "test://memory");
         assert_eq!(svc.config.cache_ttl, 0);
         assert_eq!(svc.repo.find_user(1), "cached-alice");
     }
 
-    println!();
-    println!("=== Test provider: override only Cache, keep real Database ===");
+    // Test provider: override only Cache, keep real Database
     {
-        // Selectively override just the cache
         #[provider]
         #[provide(AppConfig, AppConfig { db_url: "postgres://test:5432/testdb".into(), cache_ttl: 0 })]
         #[provide(Box<dyn Database>, |config: AppConfig| -> Box<dyn Database> {
@@ -175,16 +173,7 @@ fn main() {
         struct PartialTestProvider;
 
         let svc: UserService = PartialTestProvider.provide();
-        println!(
-            "Config: db_url={}, cache_ttl={}",
-            svc.config.db_url, svc.config.cache_ttl
-        );
-        println!("User lookup: {}", svc.repo.find_user(1));
-
         assert_eq!(svc.config.db_url, "postgres://test:5432/testdb");
         assert_eq!(svc.repo.find_user(1), "test-cached");
     }
-
-    println!();
-    println!("All override patterns demonstrated successfully!");
 }

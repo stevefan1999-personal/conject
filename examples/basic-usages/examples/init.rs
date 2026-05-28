@@ -1,9 +1,18 @@
+#![no_std]
 //! Example: Simplifying provider initialisation with `init!`
 //!
 //! Two forms are available:
 //! - Expression: `let p: Provider = init!(M1, M2);` — for modules with owned exports
 //! - Block: `init! { let p: Provider = M1, M2; }` — also supports borrowed exports
 
+// no_std + alloc compatible: uses String and format! from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+#[macro_use]
+extern crate alloc;
+extern crate std;
+
+use alloc::string::String;
 use conject::{init, injectable, module, provider};
 
 // --- Module definitions ---
@@ -59,7 +68,6 @@ fn main() {
     let provider: AppProvider = init!(DbConfigModule, ConnectionModule);
 
     let svc: DbService = provider.provide();
-    println!("[expr]  Connection: {}", svc.connection_string);
     assert_eq!(svc.connection_string, "postgres://localhost:5432");
 
     // Required when modules use field-level #[export] (which produces references).
@@ -69,6 +77,5 @@ fn main() {
     }
 
     let consumer: SecretConsumer = secret_provider.provide();
-    println!("[block] Secret value: {}", consumer.0.0);
     assert_eq!(consumer.0.0, 42);
 }

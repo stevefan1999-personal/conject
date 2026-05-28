@@ -1,5 +1,12 @@
+#![no_std]
+// no_std + alloc compatible: uses Arc from alloc::sync.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+extern crate alloc;
+extern crate std;
+
+use alloc::sync::Arc;
 use conject::{Late, injectable, provider};
-use std::sync::Arc;
 
 #[injectable]
 #[derive(Debug)]
@@ -29,7 +36,7 @@ fn main() {
     // Step 3: Complete the cycle
     a.dep.set(Arc::clone(&b)).unwrap();
 
-    println!("A.id = {}", a.id);
-    println!("B -> A.id = {}", b.dep.id);
-    println!("A -> B -> A.id = {}", a.dep.get().unwrap().dep.id);
+    assert_eq!(a.id, 42);
+    assert_eq!(b.dep.id, 42);
+    assert_eq!(a.dep.get().unwrap().dep.id, 42);
 }

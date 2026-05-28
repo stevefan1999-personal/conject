@@ -1,3 +1,4 @@
+#![no_std]
 //! Hierarchical scopes example: demonstrates nested scope patterns with conject.
 //!
 //! conject's `#[scope]` creates child providers that wrap the parent, giving
@@ -9,6 +10,13 @@
 //! - Multiple independent named scopes on the same provider
 #![allow(dead_code)]
 
+// no_std + alloc compatible: uses String from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+extern crate alloc;
+extern crate std;
+
+use alloc::string::{String, ToString};
 use conject::{inject, injectable, provider};
 
 // ---------------------------------------------------------------------------
@@ -37,14 +45,12 @@ fn basic_scope_demo() {
     let scope = app.scope();
 
     let handler: RequestHandler = scope.provide();
-    println!(
-        "[basic] RequestHandler: id={}, status={}",
-        handler.id.0, handler.status
-    );
+    assert_eq!(handler.id.0, 99);
+    assert_eq!(handler.status, 200);
 
     // Parent's i32 is also accessible from the scope
     let port: i32 = scope.provide();
-    println!("[basic] Port from parent: {port}");
+    assert_eq!(port, 8080);
 }
 
 // ---------------------------------------------------------------------------
@@ -80,10 +86,10 @@ fn request_scope_demo() {
         user_id: 1,
     });
     let h1: RouteHandler = req1.provide();
-    println!(
-        "[request] {} {} by user {} -> {}",
-        h1.ctx.method, h1.ctx.path, h1.ctx.user_id, h1.status_code
-    );
+    assert_eq!(h1.ctx.method, "GET");
+    assert_eq!(h1.ctx.path, "/users");
+    assert_eq!(h1.ctx.user_id, 1);
+    assert_eq!(h1.status_code, 200);
 
     let req2 = server.scope(RequestContext {
         method: "POST".into(),
@@ -91,10 +97,10 @@ fn request_scope_demo() {
         user_id: 2,
     });
     let h2: RouteHandler = req2.provide();
-    println!(
-        "[request] {} {} by user {} -> {}",
-        h2.ctx.method, h2.ctx.path, h2.ctx.user_id, h2.status_code
-    );
+    assert_eq!(h2.ctx.method, "POST");
+    assert_eq!(h2.ctx.path, "/orders");
+    assert_eq!(h2.ctx.user_id, 2);
+    assert_eq!(h2.status_code, 200);
 }
 
 // ---------------------------------------------------------------------------
@@ -128,15 +134,14 @@ fn named_scopes_demo() {
     // Request scope
     let req = server.request_scope("GET /api/health".into());
     let svc: RequestService = req.provide();
-    println!("[named] Request: path={}, status={}", svc.path, svc.status);
+    assert_eq!(svc.path.as_str(), "GET /api/health");
+    assert_eq!(svc.status, 200);
 
     // Background scope (completely independent)
     let bg = server.background_scope(42);
     let job: BackgroundJob = bg.provide();
-    println!(
-        "[named] Background: task_id={}, max_retries={}",
-        job.task_id, job.max_retries
-    );
+    assert_eq!(*job.task_id, 42u64);
+    assert_eq!(job.max_retries, 3);
 }
 
 // ---------------------------------------------------------------------------
@@ -163,28 +168,15 @@ fn field_provide_scope_demo() {
     let scope = app.scope();
 
     let handler: VersionedHandler = scope.provide();
-    println!(
-        "[field] version={}, port={}",
-        handler.version.0, handler.port
-    );
+    assert_eq!(handler.version.0, "v1.0");
+    assert_eq!(*handler.port, 3000);
 }
 
 // ---------------------------------------------------------------------------
 
 fn main() {
-    println!("=== Hierarchical Scopes Demo ===\n");
-
-    println!("--- 1. Basic scope (child inherits parent) ---");
     basic_scope_demo();
-
-    println!("\n--- 2. Request-scoped injection ---");
     request_scope_demo();
-
-    println!("\n--- 3. Named scopes ---");
     named_scopes_demo();
-
-    println!("\n--- 4. Scope with parent field provides ---");
     field_provide_scope_demo();
-
-    println!("\n=== Done ===");
 }

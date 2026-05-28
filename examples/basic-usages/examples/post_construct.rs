@@ -1,3 +1,12 @@
+#![no_std]
+// no_std + alloc compatible: uses String and format! from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+#[macro_use]
+extern crate alloc;
+extern crate std;
+
+use alloc::string::{String, ToString};
 use conject::{injectable, provider};
 
 #[injectable]
@@ -12,7 +21,6 @@ struct Config {
 impl Config {
     fn validate(self) -> Self {
         assert!(self.port > 0, "Port must be positive");
-        println!("Config validated: host={}, port={}", self.host, self.port);
         self
     }
 }
@@ -33,8 +41,11 @@ struct AppProvider;
 
 fn main() {
     let config: Config = AppProvider.provide();
-    println!("Server: {}:{}", config.host, config.port);
+    assert_eq!(config.port, 8080);
+    assert_eq!(config.host, "localhost");
 
     let app_config: AppConfig = AppProvider.provide();
-    println!("App description: {}", app_config.description);
+    assert_eq!(app_config.port, 3000);
+    assert_eq!(app_config.host, "0.0.0.0");
+    assert_eq!(app_config.description, "App on 0.0.0.0:3000");
 }

@@ -1,8 +1,14 @@
+#![no_std]
 #![allow(dead_code)]
 //! Assisted injection example.
 //!
 //! Demonstrates using `#[assisted]` to mark fields that are provided by the
 //! caller at creation time rather than resolved from the DI container.
+
+// no_std compatible: only core types (i32, f64) — no heap allocation.
+// `extern crate std` provides the binary runtime (panic handler, global
+// allocator). In a real no_std target, replace it with your own.
+extern crate std;
 
 use conject::{injectable, provider};
 
@@ -35,6 +41,6 @@ fn main() {
     // while `customer_id` and `amount` are passed directly.
     let order = Order::create(&provider, 42, 99.99);
 
-    println!("Created order: {order:?}");
-    // Output: Created order: Order { db: DbPool, customer_id: 42, amount: 99.99 }
+    assert_eq!(order.customer_id, 42);
+    assert!((order.amount - 99.99).abs() < f64::EPSILON);
 }

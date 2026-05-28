@@ -2,6 +2,8 @@
 //! Example demonstrating async dependency injection with conject.
 //!
 //! Run with: `cargo run --example async_init -p conject`
+//!
+//! **Requires `std`** — uses the tokio async runtime (`#[tokio::main]`).
 
 use conject::{async_injectable, injectable, provider};
 
@@ -43,9 +45,13 @@ async fn main() {
 
     // Async provide
     let service: AppService = provider.provide_async().await;
-    println!("Service: {service:#?}");
+    assert_eq!(service.config.db_url, "localhost:5432");
+    assert_eq!(service.config.max_retries, 5);
+    assert_eq!(service.pool.connection, "connected-pool");
+    assert_eq!(service.version, "app-v1");
 
     // Sync provide still works
     let config: Config = provider.provide();
-    println!("Config: {config:#?}");
+    assert_eq!(config.db_url, "localhost:5432");
+    assert_eq!(config.max_retries, 5);
 }

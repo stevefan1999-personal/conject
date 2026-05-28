@@ -1,6 +1,14 @@
-//! Realistic example: A web service with database, cache, auth, and logging.
+#![no_std]
 #![allow(dead_code)]
+//! Realistic example: A web service with database, cache, auth, and logging.
 
+// no_std + alloc compatible: uses String from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+extern crate alloc;
+extern crate std;
+
+use alloc::string::String;
 use conject::{init, injectable, module, provider};
 
 // -- Domain types --------------------------------------------------------
@@ -85,19 +93,16 @@ fn main() {
     let provider: AppProvider = init!(ConfigModule, DatabaseModule, CacheModule, AuthModule);
 
     let config: AppConfig = provider.provide();
-    println!("Starting {} on port {}", "MyApp", config.port);
+    assert_eq!(config.port, 8080);
+    assert_eq!(config.db_url, "postgres://localhost/myapp");
+    assert_eq!(config.cache_ttl, 300);
 
     let user_svc: UserService = provider.provide();
-    println!(
-        "UserService ready: db={}, cache_ttl={}",
-        user_svc.repo.db.url, user_svc.repo.cache.ttl
-    );
+    assert_eq!(user_svc.repo.db.url, "postgres://localhost/myapp");
+    assert_eq!(user_svc.repo.cache.ttl, 300);
+    assert_eq!(user_svc.auth.secret, "super-secret-key");
 
     let health: HealthCheck = provider.provide();
-    println!(
-        "HealthCheck: port={}, db={}",
-        health.config.port, health.db.url
-    );
-
-    println!("Auth secret: {}", user_svc.auth.secret);
+    assert_eq!(health.config.port, 8080);
+    assert_eq!(health.db.url, "postgres://localhost/myapp");
 }

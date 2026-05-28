@@ -1,7 +1,16 @@
+#![no_std]
 //! Example demonstrating `Lazy<T>` and `Factory<T>` types in conject.
 //!
 //! Run with: `cargo run --example lazy_factory -p conject`
 
+// no_std + alloc compatible: uses String and format! from alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+#[macro_use]
+extern crate alloc;
+extern crate std;
+
+use alloc::string::String;
 use conject::{Factory, Lazy, injectable, provider};
 
 // A dependency that might be expensive to construct.
@@ -34,7 +43,6 @@ impl UserService {
 }
 
 // A simple job type produced by a factory.
-#[derive(Debug)]
 struct BackgroundJob {
     id: u64,
     name: String,
@@ -63,21 +71,17 @@ fn main() {
 
     // Lazy example: the database connection is not created until first use.
     let user_service: UserService = provider.provide();
-    println!(
-        "UserService created. DB initialized? {}",
-        user_service.db.is_initialized()
-    );
-    let result = user_service.get_user(42);
-    println!("{}", result);
-    println!(
-        "After first use, DB initialized? {}",
-        user_service.db.is_initialized()
-    );
+    assert!(!user_service.db.is_initialized());
 
-    println!();
+    let result = user_service.get_user(42);
+    assert_eq!(
+        result,
+        "Querying 'SELECT * FROM users WHERE id = 42' on postgres://localhost/users"
+    );
+    assert!(user_service.db.is_initialized());
 
     // Factory example: each call to create() produces a new instance.
     let processor: JobProcessor = provider.provide();
-    println!("{}", processor.process_next());
-    println!("{}", processor.process_next());
+    assert_eq!(processor.process_next(), "Processing job #1: sync-data");
+    assert_eq!(processor.process_next(), "Processing job #1: sync-data");
 }

@@ -2,6 +2,9 @@
 //!
 //! Demonstrates reading environment variables at construction time,
 //! with optional default values when the variable is not set.
+//!
+//! **Requires `std`** — uses `std::env` for environment variable access.
+//! Enable the `env` feature on conject: `conject = { features = ["env"] }`.
 
 use conject::{injectable, provider};
 

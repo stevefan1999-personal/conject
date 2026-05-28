@@ -1,9 +1,17 @@
+#![no_std]
 #![allow(dead_code)]
 //! Example demonstrating optional dependency injection with conject.
 //!
 //! `Option<T>` fields without `#[inject]` default to `None`.
 //! Use `#[inject(Some(...))]` to provide an explicit value.
 
+// no_std + alloc compatible: uses String and Option from core/alloc.
+// `extern crate alloc` provides heap types; `extern crate std` provides the
+// binary runtime. Replace std with your own in a real no_std target.
+extern crate alloc;
+extern crate std;
+
+use alloc::string::String;
 use conject::{injectable, provider};
 
 /// A required dependency.
@@ -46,14 +54,16 @@ fn main() {
     let provider = AppProvider;
 
     let service: Service = provider.provide();
-    println!("Service: {:?}", service);
-    // Service { db: DatabaseConnection, cache: None }
+    assert!(service.cache.is_none());
 
     let config: OptionalConfig = provider.provide();
-    println!("Config: {:?}", config);
-    // OptionalConfig { debug_mode: None, log_level: None }
+    assert!(config.debug_mode.is_none());
+    assert!(config.log_level.is_none());
 
     let service_with_defaults: ServiceWithDefaults = provider.provide();
-    println!("ServiceWithDefaults: {:?}", service_with_defaults);
-    // ServiceWithDefaults { db: DatabaseConnection, cache_backend: Some("memory"), metrics: None }
+    assert_eq!(
+        service_with_defaults.cache_backend,
+        Some(String::from("memory"))
+    );
+    assert!(service_with_defaults.metrics.is_none());
 }
